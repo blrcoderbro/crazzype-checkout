@@ -160,13 +160,48 @@
     iframe.style.cssText = 'width:100%;height:100%;border:none;border-radius:8px;';
     iframe.onload = function() {
       // Listen for postMessage from payment page
-      window.addEventListener('message', function(event) {
+      var messageHandler = function(event) {
         if (event.data && event.data.type === 'crazzype-payment-success') {
           self._handleSuccess(event.data);
+          window.removeEventListener('message', messageHandler);
         } else if (event.data && event.data.type === 'crazzype-payment-failure') {
           self._handleFailure(event.data);
+          window.removeEventListener('message', messageHandler);
         }
-      });
+      };
+      window.addEventListener('message', messageHandler);
+      
+      // Also poll for URL changes in iframe (for callback URL handling)
+      var pollInterval = setInterval(function() {
+        try {
+          var iframeUrl = iframe.contentWindow.location.href;
+          if (iframeUrl && iframeUrl.includes('status=success')) {
+            var urlParams = new URLSearchParams(iframeUrl.split('?')[1]);
+            var status = urlParams.get('status');
+            var orderId = urlParams.get('order_id');
+            var hash = urlParams.get('hash');
+            
+            if (status === 'success' && orderId && hash) {
+              clearInterval(pollInterval);
+              // Fetch payment details to get payment_id
+              self._fetchPaymentDetails(orderId, hash);
+            }
+          } else if (iframeUrl && iframeUrl.includes('status=failed')) {
+            clearInterval(pollInterval);
+            self._handleFailure({ error_description: 'Payment failed' });
+          }
+        } catch (e) {
+          // Cross-origin error, ignore
+        }
+      }, 1000);
+      
+      // Clean up interval when modal closes
+      var originalClose = self.close;
+      self.close = function() {
+        clearInterval(pollInterval);
+        window.removeEventListener('message', messageHandler);
+        originalClose.call(self);
+      };
     };
     
     modal.appendChild(closeBtn);
@@ -309,12 +344,51 @@
   };
 
   /**
+   * Fetch payment details from callback URL
+   */
+  CrazzyPe.prototype._fetchPaymentDetails = function(orderId, hash) {
+    var self = this;
+    
+    // Check order status to get payment details
+    fetch(API_BASE_URL + '/api/orders/check-order-status', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + this.options.key
+      },
+      body: JSON.stringify({
+        order_id: orderId
+      })
+    })
+    .then(function(res) {
+      return res.json();
+    })
+    .then(function(data) {
+      if (data.status === 'success' && data.data) {
+        var paymentData = {
+          order_id: orderId,
+          payment_id: data.data.upi_txn_id || data.data.payment_id,
+          signature: hash,
+          hash: hash
+        };
+        self._handleSuccess(paymentData);
+      } else {
+        self._handleFailure({ error_description: 'Payment verification failed' });
+      }
+    })
+    .catch(function(error) {
+      console.error('Error fetching payment details:', error);
+      self._handleFailure({ error_description: 'Failed to verify payment' });
+    });
+  };
+
+  /**
    * Verify payment signature
    */
   CrazzyPe.prototype._verifySignature = function(response) {
     var self = this;
     
-    if (!response.signature) {
+    if (!response.signature && !response.hash) {
       console.warn('No signature provided for verification');
       return;
     }
@@ -329,7 +403,7 @@
       body: JSON.stringify({
         order_id: response.crazzype_order_id || response.order_id,
         payment_id: response.crazzype_payment_id || response.payment_id,
-        signature: response.crazzype_signature || response.signature
+        signature: response.crazzype_signature || response.signature || response.hash
       })
     })
     .then(function(res) {
@@ -337,13 +411,23 @@
     })
     .then(function(data) {
       if (data.verified) {
-        console.log('Payment signature verified');
+        console.log('Payment signature verified successfully');
+        // Optionally call a success callback
+        if (self.options.onVerificationSuccess) {
+          self.options.onVerificationSuccess(data);
+        }
       } else {
-        console.warn('Payment signature verification failed');
+        console.warn('Payment signature verification failed:', data.message);
+        if (self.options.onVerificationFailure) {
+          self.options.onVerificationFailure(data);
+        }
       }
     })
     .catch(function(error) {
       console.error('Error verifying signature:', error);
+      if (self.options.onVerificationFailure) {
+        self.options.onVerificationFailure({ error: error.message });
+      }
     });
   };
 
