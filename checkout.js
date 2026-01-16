@@ -53,26 +53,31 @@
   }
 
   /**
-   * Open the payment checkout
+   * Open the payment checkout (Incognito Mode - Premium Feature)
    */
   CrazzyPe.prototype.open = function() {
     var self = this;
     
-    // Fetch order details and payment URL
-    this._fetchPaymentUrl()
+    // First, check if user has incognito feature
+    this._checkIncognitoFeature()
+      .then(function(hasFeature) {
+        if (!hasFeature) {
+          self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js');
+          return;
+        }
+        
+        // Fetch order details and payment URL
+        return self._fetchPaymentUrl();
+      })
       .then(function(data) {
+        if (!data) return; // Error already handled
+        
         if (data.payment_url) {
           self.paymentToken = data.payment_token || null;
           self.orderDetails = data;
           
-          // Open payment window
-          if (self.options.modal && self.options.modal.backdropclose !== false) {
-            // Open in modal/popup
-            self._openModal(data.payment_url);
-          } else {
-            // Open in new window
-            self._openWindow(data.payment_url);
-          }
+          // Always use incognito/iframe mode (modal)
+          self._openModal(data.payment_url);
         } else {
           self._handleError('Failed to get payment URL');
         }
@@ -80,6 +85,37 @@
       .catch(function(error) {
         self._handleError(error.message || 'Failed to initialize payment');
       });
+  };
+
+  /**
+   * Check if user has incognito feature
+   */
+  CrazzyPe.prototype._checkIncognitoFeature = function() {
+    var self = this;
+    
+    return new Promise(function(resolve, reject) {
+      fetch(API_BASE_URL + '/api/orders/check-incognito-feature', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + self.options.key
+        }
+      })
+      .then(function(response) {
+        return response.json();
+      })
+      .then(function(data) {
+        if (data.status === 'success' && data.hasIncognito) {
+          resolve(true);
+        } else {
+          resolve(false);
+        }
+      })
+      .catch(function(error) {
+        console.error('Error checking incognito feature:', error);
+        reject(error);
+      });
+    });
   };
 
   /**
@@ -277,6 +313,7 @@
    * Handle payment success
    */
   CrazzyPe.prototype._handleSuccess = function(data) {
+    var self = this;
     this.close();
     
     var response = {
@@ -288,19 +325,79 @@
       signature: data.signature || data.hash
     };
     
-    // Call handler
-    if (this.options.handler) {
-      this.options.handler(response);
+    // If callback_url is provided, trigger server-to-server callback
+    if (this.options.callback_url) {
+      this._triggerServerCallback(response)
+        .then(function() {
+          // Call handler after callback
+          if (self.options.handler) {
+            self.options.handler(response);
+          }
+          
+          if (self.options.onSuccess) {
+            self.options.onSuccess(response);
+          }
+        })
+        .catch(function(error) {
+          console.error('Error in server callback:', error);
+          // Still call handler even if callback fails
+          if (self.options.handler) {
+            self.options.handler(response);
+          }
+          
+          if (self.options.onSuccess) {
+            self.options.onSuccess(response);
+          }
+        });
+    } else {
+      // Verify signature if callback_url is not provided
+      this._verifySignature(response)
+        .then(function() {
+          // Call handler after verification
+          if (self.options.handler) {
+            self.options.handler(response);
+          }
+          
+          if (self.options.onSuccess) {
+            self.options.onSuccess(response);
+          }
+        });
     }
+  };
+
+  /**
+   * Trigger server-to-server callback
+   */
+  CrazzyPe.prototype._triggerServerCallback = function(response) {
+    var self = this;
     
-    if (this.options.onSuccess) {
-      this.options.onSuccess(response);
-    }
-    
-    // Verify signature if callback_url is not provided
-    if (!this.options.callback_url && this.options.handler) {
-      this._verifySignature(response);
-    }
+    return new Promise(function(resolve, reject) {
+      fetch(API_BASE_URL + '/api/orders/incognito-callback', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          order_id: response.order_id,
+          payment_id: response.payment_id,
+          signature: response.signature,
+          callback_url: self.options.callback_url
+        })
+      })
+      .then(function(res) {
+        return res.json();
+      })
+      .then(function(data) {
+        if (data.status === 'success' && data.verified) {
+          resolve(data);
+        } else {
+          reject(new Error(data.message || 'Callback verification failed'));
+        }
+      })
+      .catch(function(error) {
+        reject(error);
+      });
+    });
   };
 
   /**
@@ -390,11 +487,11 @@
     
     if (!response.signature && !response.hash) {
       console.warn('No signature provided for verification');
-      return;
+      return Promise.reject(new Error('No signature provided'));
     }
     
     // Verify signature on server
-    fetch(API_BASE_URL + '/api/orders/verify-payment', {
+    return fetch(API_BASE_URL + '/api/orders/verify-payment', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -416,11 +513,13 @@
         if (self.options.onVerificationSuccess) {
           self.options.onVerificationSuccess(data);
         }
+        return data;
       } else {
         console.warn('Payment signature verification failed:', data.message);
         if (self.options.onVerificationFailure) {
           self.options.onVerificationFailure(data);
         }
+        throw new Error(data.message || 'Verification failed');
       }
     })
     .catch(function(error) {
@@ -428,6 +527,7 @@
       if (self.options.onVerificationFailure) {
         self.options.onVerificationFailure({ error: error.message });
       }
+      throw error;
     });
   };
 
