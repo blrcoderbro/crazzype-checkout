@@ -244,11 +244,28 @@
   };
 
   /**
-   * Open payment UI modal with QR code and UPI links
+   * Open payment UI modal with iframe
    */
   CrazzyPe.prototype._openPaymentModal = function(orderData) {
     var self = this;
-
+    
+    // Extract token from payment_url
+    var paymentUrl = orderData.payment_url || '';
+    if (!paymentUrl) {
+      self._handleError('Payment URL not found in order response');
+      return;
+    }
+    
+    // Extract token from URL (e.g., /pay/{token})
+    var tokenMatch = paymentUrl.match(/\/pay\/([^\/\?]+)/);
+    if (!tokenMatch || !tokenMatch[1]) {
+      self._handleError('Invalid payment URL format');
+      return;
+    }
+    
+    var token = tokenMatch[1];
+    
+    // Ensure styles for modal overlay
     var ensureStyles = function() {
       if (document.getElementById('crazzype-checkout-style')) {
         return;
@@ -256,16 +273,6 @@
       var style = document.createElement('style');
       style.id = 'crazzype-checkout-style';
       style.textContent = [
-        ':root {',
-        '  --cpz-bg: #0f172a;',
-        '  --cpz-card: #ffffff;',
-        '  --cpz-muted: #64748b;',
-        '  --cpz-text: #0f172a;',
-        '  --cpz-accent: #f97316;',
-        '  --cpz-accent-2: #0ea5e9;',
-        '  --cpz-border: #e2e8f0;',
-        '  --cpz-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);',
-        '}',
         '#crazzype-modal-overlay {',
         '  position: fixed;',
         '  inset: 0;',
@@ -279,163 +286,48 @@
         '}',
         '#crazzype-modal {',
         '  width: min(980px, 95vw);',
-        '  background: var(--cpz-card);',
+        '  height: min(90vh, 800px);',
+        '  background: #ffffff;',
         '  border-radius: 18px;',
         '  overflow: hidden;',
-        '  box-shadow: var(--cpz-shadow);',
-        '  font-family: "Poppins", "Trebuchet MS", "Segoe UI", Arial, sans-serif;',
-        '  color: var(--cpz-text);',
+        '  box-shadow: 0 24px 60px rgba(15, 23, 42, 0.25);',
+        '  position: relative;',
         '}',
-        '.cpz-header {',
-        '  display: flex;',
-        '  align-items: center;',
-        '  justify-content: space-between;',
-        '  padding: 22px 26px;',
-        '  background: linear-gradient(120deg, #f8fafc, #e2e8f0);',
-        '  border-bottom: 1px solid var(--cpz-border);',
-        '}',
-        '.cpz-brand {',
-        '  display: flex;',
-        '  align-items: center;',
-        '  gap: 14px;',
-        '}',
-        '.cpz-logo {',
-        '  width: 48px;',
-        '  height: 48px;',
-        '  border-radius: 12px;',
-        '  background: #0f172a;',
-        '  color: #fff;',
-        '  display: flex;',
-        '  align-items: center;',
-        '  justify-content: center;',
-        '  font-weight: 700;',
-        '  letter-spacing: 0.5px;',
-        '  font-size: 18px;',
-        '  overflow: hidden;',
-        '}',
-        '.cpz-logo img {',
+        '#crazzype-iframe {',
         '  width: 100%;',
         '  height: 100%;',
-        '  object-fit: cover;',
-        '}',
-        '.cpz-title {',
-        '  font-size: 20px;',
-        '  font-weight: 700;',
-        '  margin: 0;',
-        '}',
-        '.cpz-subtitle {',
-        '  font-size: 13px;',
-        '  color: var(--cpz-muted);',
-        '  margin: 4px 0 0;',
+        '  border: none;',
+        '  display: block;',
         '}',
         '.cpz-close {',
+        '  position: absolute;',
+        '  top: 15px;',
+        '  right: 15px;',
         '  border: none;',
-        '  background: #e2e8f0;',
+        '  background: rgba(255, 255, 255, 0.9);',
         '  color: #0f172a;',
         '  width: 34px;',
         '  height: 34px;',
         '  border-radius: 50%;',
         '  font-size: 18px;',
         '  cursor: pointer;',
-        '}',
-        '.cpz-body {',
-        '  display: grid;',
-        '  grid-template-columns: 1.1fr 0.9fr;',
-        '  gap: 24px;',
-        '  padding: 26px;',
-        '}',
-        '.cpz-panel {',
-        '  background: #f8fafc;',
-        '  border: 1px solid var(--cpz-border);',
-        '  border-radius: 14px;',
-        '  padding: 18px;',
-        '}',
-        '.cpz-amount {',
-        '  font-size: 32px;',
-        '  font-weight: 800;',
-        '  margin: 4px 0 0;',
-        '}',
-        '.cpz-label {',
-        '  font-size: 12px;',
-        '  text-transform: uppercase;',
-        '  letter-spacing: 1px;',
-        '  color: var(--cpz-muted);',
-        '}',
-        '.cpz-meta {',
-        '  margin-top: 16px;',
-        '  display: grid;',
-        '  gap: 10px;',
-        '  font-size: 14px;',
-        '}',
-        '.cpz-meta span {',
-        '  color: var(--cpz-muted);',
-        '  display: block;',
-        '  font-size: 12px;',
-        '  margin-bottom: 2px;',
-        '}',
-        '.cpz-timer {',
-        '  margin-top: 16px;',
-        '  padding: 10px 12px;',
-        '  border-radius: 10px;',
-        '  background: #fff7ed;',
-        '  color: #c2410c;',
-        '  font-weight: 600;',
-        '  font-size: 13px;',
-        '}',
-        '.cpz-qr {',
+        '  z-index: 1000000;',
         '  display: flex;',
-        '  flex-direction: column;',
-        '  align-items: center;',
-        '  gap: 12px;',
-        '}',
-        '.cpz-qr img {',
-        '  width: 220px;',
-        '  height: 220px;',
-        '  border-radius: 12px;',
-        '  border: 1px solid var(--cpz-border);',
-        '  background: #fff;',
-        '  padding: 8px;',
-        '}',
-        '.cpz-button {',
-        '  display: inline-flex;',
         '  align-items: center;',
         '  justify-content: center;',
-        '  gap: 8px;',
-        '  padding: 12px 18px;',
-        '  border-radius: 10px;',
-        '  background: linear-gradient(120deg, var(--cpz-accent), var(--cpz-accent-2));',
-        '  color: #fff;',
-        '  text-decoration: none;',
-        '  font-weight: 700;',
-        '  border: none;',
-        '  cursor: pointer;',
-        '  margin-top: 14px;',
+        '  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);',
         '}',
-        '.cpz-status {',
-        '  margin-top: 16px;',
-        '  font-size: 14px;',
-        '  color: var(--cpz-muted);',
-        '  text-align: center;',
+        '.cpz-close:hover {',
+        '  background: #ffffff;',
         '}',
-        '.cpz-steps {',
-        '  margin-top: 16px;',
-        '  font-size: 13px;',
-        '  color: var(--cpz-muted);',
-        '  line-height: 1.6;',
-        '}',
-        '.cpz-footer {',
-        '  margin-top: 14px;',
-        '  font-size: 11px;',
-        '  color: var(--cpz-muted);',
-        '  text-align: center;',
-        '}',
-        '@media (max-width: 860px) {',
-        '  .cpz-body {',
-        '    grid-template-columns: 1fr;',
+        '@media (max-width: 768px) {',
+        '  #crazzype-modal {',
+        '    width: 100vw;',
+        '    height: 100vh;',
+        '    border-radius: 0;',
         '  }',
-        '  .cpz-qr img {',
-        '    width: 200px;',
-        '    height: 200px;',
+        '  #crazzype-modal-overlay {',
+        '    padding: 0;',
         '  }',
         '}'
       ].join('\n');
@@ -454,148 +346,50 @@
 
     // Create close button
     var closeBtn = document.createElement('button');
-    closeBtn.innerHTML = 'x';
+    closeBtn.innerHTML = '×';
     closeBtn.className = 'cpz-close';
     closeBtn.onclick = function() {
       self.close();
     };
 
-    var header = document.createElement('div');
-    header.className = 'cpz-header';
+    // Create iframe
+    var iframe = document.createElement('iframe');
+    iframe.id = 'crazzype-iframe';
+    iframe.src = paymentUrl;
+    iframe.allow = 'payment';
+    iframe.setAttribute('sandbox', 'allow-same-origin allow-scripts allow-forms allow-popups allow-top-navigation');
 
-    var brand = document.createElement('div');
-    brand.className = 'cpz-brand';
+    // Listen for postMessage from iframe
+    var messageHandler = function(event) {
+      // Verify origin (in production, check against API_BASE_URL)
+      if (event.data && event.data.type) {
+        if (event.data.type === 'crazzype-payment-success') {
+          // Payment successful
+          var paymentData = {
+            order_id: event.data.order_id || self.options.order_id,
+            payment_id: event.data.payment_id,
+            signature: event.data.signature || event.data.hash,
+            hash: event.data.hash || event.data.signature
+          };
+          self._handleSuccess(paymentData);
+        } else if (event.data.type === 'crazzype-payment-failure') {
+          // Payment failed
+          self._handleFailure({
+            error_code: event.data.error_code || 'PAYMENT_FAILED',
+            error_description: event.data.error_description || 'Payment failed',
+            reason: event.data.reason || 'unknown'
+          });
+        }
+      }
+    };
 
-    var logoWrap = document.createElement('div');
-    logoWrap.className = 'cpz-logo';
-    if (self.options.image) {
-      var logoImg = document.createElement('img');
-      logoImg.src = self.options.image;
-      logoImg.alt = self.options.name || 'Merchant';
-      logoWrap.appendChild(logoImg);
-    } else {
-      var initials = (self.options.name || 'C').trim().charAt(0).toUpperCase();
-      logoWrap.textContent = initials || 'C';
-    }
+    window.addEventListener('message', messageHandler);
 
-    var titleWrap = document.createElement('div');
-    var title = document.createElement('div');
-    title.className = 'cpz-title';
-    title.textContent = self.options.name || 'CrazzyPe';
-    var subtitle = document.createElement('div');
-    subtitle.className = 'cpz-subtitle';
-    subtitle.textContent = self.options.description || 'Secure payment';
-    titleWrap.appendChild(title);
-    titleWrap.appendChild(subtitle);
+    // Store message handler for cleanup
+    self._messageHandler = messageHandler;
 
-    brand.appendChild(logoWrap);
-    brand.appendChild(titleWrap);
-    header.appendChild(brand);
-    header.appendChild(closeBtn);
-
-    var body = document.createElement('div');
-    body.className = 'cpz-body';
-
-    var leftPanel = document.createElement('div');
-    leftPanel.className = 'cpz-panel';
-
-    var amountLabel = document.createElement('div');
-    amountLabel.className = 'cpz-label';
-    amountLabel.textContent = 'Total amount';
-    var amountValue = document.createElement('div');
-    amountValue.className = 'cpz-amount';
-    amountValue.textContent = 'Rs. ' + parseFloat(self.options.amount).toFixed(2);
-    leftPanel.appendChild(amountLabel);
-    leftPanel.appendChild(amountValue);
-
-    var meta = document.createElement('div');
-    meta.className = 'cpz-meta';
-    var metaOrder = document.createElement('div');
-    metaOrder.innerHTML = '<span>Order ID</span>' + (orderData.order_id || self.options.order_id || 'Pending');
-    meta.appendChild(metaOrder);
-
-    if (self.options.prefill && self.options.prefill.name) {
-      var metaName = document.createElement('div');
-      metaName.innerHTML = '<span>Customer</span>' + self.options.prefill.name;
-      meta.appendChild(metaName);
-    }
-    if (self.options.prefill && self.options.prefill.email) {
-      var metaEmail = document.createElement('div');
-      metaEmail.innerHTML = '<span>Email</span>' + self.options.prefill.email;
-      meta.appendChild(metaEmail);
-    }
-    if (self.options.prefill && self.options.prefill.contact) {
-      var metaPhone = document.createElement('div');
-      metaPhone.innerHTML = '<span>Phone</span>' + self.options.prefill.contact;
-      meta.appendChild(metaPhone);
-    }
-
-    leftPanel.appendChild(meta);
-
-    var timerDiv = document.createElement('div');
-    timerDiv.id = 'crazzype-timer';
-    timerDiv.className = 'cpz-timer';
-    var timerText = document.createElement('div');
-    timerText.id = 'crazzype-timer-text';
-    timerText.textContent = 'Time remaining: 5:00';
-    timerDiv.appendChild(timerText);
-    leftPanel.appendChild(timerDiv);
-
-    var statusDiv = document.createElement('div');
-    statusDiv.id = 'crazzype-status';
-    statusDiv.className = 'cpz-status';
-    statusDiv.textContent = 'Waiting for payment...';
-    leftPanel.appendChild(statusDiv);
-
-    var rightPanel = document.createElement('div');
-    rightPanel.className = 'cpz-panel';
-
-    var qrWrap = document.createElement('div');
-    qrWrap.className = 'cpz-qr';
-    var qrLabel = document.createElement('div');
-    qrLabel.className = 'cpz-label';
-    qrLabel.textContent = 'Scan to pay';
-    qrWrap.appendChild(qrLabel);
-    if (orderData.qr_code) {
-      var qrImg = document.createElement('img');
-      qrImg.src = orderData.qr_code;
-      qrImg.alt = 'Payment QR';
-      qrWrap.appendChild(qrImg);
-    }
-    rightPanel.appendChild(qrWrap);
-
-    if (orderData.upi_intent_link) {
-      var upiButton = document.createElement('a');
-      upiButton.href = orderData.upi_intent_link;
-      upiButton.textContent = 'Pay with UPI app';
-      upiButton.className = 'cpz-button';
-      upiButton.onclick = function(e) {
-        window.location.href = orderData.upi_intent_link;
-        e.preventDefault();
-      };
-      rightPanel.appendChild(upiButton);
-    }
-
-    var steps = document.createElement('div');
-    steps.className = 'cpz-steps';
-    steps.innerHTML = [
-      '<strong>Steps:</strong>',
-      '1) Open your UPI app.',
-      '2) Scan the QR code or tap the button.',
-      '3) Confirm amount and pay.'
-    ].join('<br>');
-    rightPanel.appendChild(steps);
-
-    var footer = document.createElement('div');
-    footer.className = 'cpz-footer';
-    footer.textContent = 'Powered by CrazzyPe Checkout';
-    rightPanel.appendChild(footer);
-
-    body.appendChild(leftPanel);
-    body.appendChild(rightPanel);
-
-    modal.appendChild(header);
-    modal.appendChild(body);
+    modal.appendChild(closeBtn);
+    modal.appendChild(iframe);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
 
@@ -609,12 +403,6 @@
     }
 
     this.paymentWindow = overlay;
-
-    // Start timer
-    this._startTimer();
-
-    // Start polling for payment status
-    this._startPolling();
   };
 
   /**
@@ -738,6 +526,12 @@
     if (this.pollingInterval) {
       clearInterval(this.pollingInterval);
       this.pollingInterval = null;
+    }
+    
+    // Remove message handler
+    if (this._messageHandler) {
+      window.removeEventListener('message', this._messageHandler);
+      this._messageHandler = null;
     }
     
     if (this.paymentWindow) {
