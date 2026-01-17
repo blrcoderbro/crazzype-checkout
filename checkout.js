@@ -25,9 +25,6 @@
       throw new Error('Amount is required');
     }
 
-    // Order ID can be provided or will be created automatically
-    // If not provided, we'll create order in _fetchPaymentUrl
-
     this.options = {
       key: options.key,
       amount: options.amount,
@@ -48,8 +45,10 @@
     };
 
     this.paymentWindow = null;
-    this.paymentToken = null;
     this.orderDetails = null;
+    this.pollingInterval = null;
+    this.paymentTimer = null;
+    this.timeLeft = 300; // 5 minutes default
   }
 
   /**
@@ -58,28 +57,26 @@
   CrazzyPe.prototype.open = function() {
     var self = this;
     
-        // First, check if user has incognito feature
-        this._checkIncognitoFeature()
-          .then(function(hasFeature) {
-            if (!hasFeature) {
-              self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js. If you already have the feature, please check your API key and try again.');
-              return;
-            }
-            
-            // Fetch order details and payment URL
-            return self._fetchPaymentUrl();
-          })
+    // First, check if user has incognito feature
+    this._checkIncognitoFeature()
+      .then(function(hasFeature) {
+        if (!hasFeature) {
+          self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js. If you already have the feature, please check your API key and try again.');
+          return;
+        }
+        
+        // Create order and get payment details
+        return self._createOrder();
+      })
       .then(function(data) {
         if (!data) return; // Error already handled
         
-        if (data.payment_url) {
-          self.paymentToken = data.payment_token || null;
+        if (data.status === 'success') {
           self.orderDetails = data;
-          
-          // Always use incognito/iframe mode (modal)
-          self._openModal(data.payment_url);
+          // Open payment UI modal
+          self._openPaymentModal(data);
         } else {
-          self._handleError('Failed to get payment URL');
+          self._handleError(data.message || 'Failed to create order');
         }
       })
       .catch(function(error) {
@@ -102,9 +99,7 @@
         }
       })
       .then(function(response) {
-        // Handle non-OK responses
         if (!response.ok) {
-          // Try to parse error response
           return response.json().then(function(data) {
             throw new Error(data.message || 'Failed to check incognito feature. Status: ' + response.status);
           }).catch(function() {
@@ -122,17 +117,15 @@
       })
       .catch(function(error) {
         console.error('Error checking incognito feature:', error);
-        // Don't reject, just resolve with false to allow graceful degradation
-        // The error will be shown when trying to open payment
         resolve(false);
       });
     });
   };
 
   /**
-   * Fetch payment URL from server
+   * Create order on server
    */
-  CrazzyPe.prototype._fetchPaymentUrl = function() {
+  CrazzyPe.prototype._createOrder = function() {
     var self = this;
     
     return new Promise(function(resolve, reject) {
@@ -160,9 +153,7 @@
         })
       })
       .then(function(response) {
-        // Handle non-OK responses
         if (!response.ok) {
-          // Try to parse error response
           return response.json().then(function(data) {
             throw new Error(data.message || 'Failed to create order. Status: ' + response.status);
           }).catch(function() {
@@ -172,7 +163,7 @@
         return response.json();
       })
       .then(function(data) {
-        if (data.status === 'success' && data.payment_url) {
+        if (data.status === 'success') {
           // Store order_id for later use
           self.options.order_id = data.order_id || orderId;
           resolve(data);
@@ -188,9 +179,9 @@
   };
 
   /**
-   * Open payment in modal overlay
+   * Open payment UI modal with QR code and UPI links
    */
-  CrazzyPe.prototype._openModal = function(url) {
+  CrazzyPe.prototype._openPaymentModal = function(orderData) {
     var self = this;
     
     // Create modal overlay
@@ -201,68 +192,105 @@
     // Create modal container
     var modal = document.createElement('div');
     modal.id = 'crazzype-modal';
-    modal.style.cssText = 'background:white;border-radius:8px;width:90%;max-width:500px;height:80%;max-height:600px;position:relative;box-shadow:0 4px 20px rgba(0,0,0,0.3);';
+    modal.style.cssText = 'background:white;border-radius:12px;width:90%;max-width:450px;max-height:90vh;overflow-y:auto;position:relative;box-shadow:0 8px 32px rgba(0,0,0,0.3);';
     
     // Create close button
     var closeBtn = document.createElement('button');
     closeBtn.innerHTML = '×';
-    closeBtn.style.cssText = 'position:absolute;top:10px;right:10px;background:none;border:none;font-size:24px;cursor:pointer;z-index:1000000;color:#666;';
+    closeBtn.style.cssText = 'position:absolute;top:15px;right:15px;background:none;border:none;font-size:28px;cursor:pointer;z-index:1000000;color:#666;width:32px;height:32px;display:flex;align-items:center;justify-content:center;line-height:1;';
     closeBtn.onclick = function() {
       self.close();
     };
     
-    // Create iframe
-    var iframe = document.createElement('iframe');
-    iframe.src = url;
-    iframe.style.cssText = 'width:100%;height:100%;border:none;border-radius:8px;';
-    iframe.onload = function() {
-      // Listen for postMessage from payment page
-      var messageHandler = function(event) {
-        if (event.data && event.data.type === 'crazzype-payment-success') {
-          self._handleSuccess(event.data);
-          window.removeEventListener('message', messageHandler);
-        } else if (event.data && event.data.type === 'crazzype-payment-failure') {
-          self._handleFailure(event.data);
-          window.removeEventListener('message', messageHandler);
-        }
+    // Create modal content
+    var content = document.createElement('div');
+    content.style.cssText = 'padding:30px;';
+    
+    // Merchant name/logo
+    var merchantHeader = document.createElement('div');
+    merchantHeader.style.cssText = 'text-align:center;margin-bottom:20px;';
+    if (self.options.image) {
+      var logo = document.createElement('img');
+      logo.src = self.options.image;
+      logo.style.cssText = 'max-width:80px;max-height:80px;margin-bottom:10px;border-radius:8px;';
+      merchantHeader.appendChild(logo);
+    }
+    var merchantName = document.createElement('h2');
+    merchantName.textContent = self.options.name;
+    merchantName.style.cssText = 'margin:0;font-size:20px;font-weight:600;color:#333;';
+    merchantHeader.appendChild(merchantName);
+    content.appendChild(merchantHeader);
+    
+    // Amount
+    var amountDiv = document.createElement('div');
+    amountDiv.style.cssText = 'text-align:center;margin-bottom:25px;';
+    var amountLabel = document.createElement('div');
+    amountLabel.textContent = 'Amount to Pay';
+    amountLabel.style.cssText = 'font-size:14px;color:#666;margin-bottom:5px;';
+    var amountValue = document.createElement('div');
+    amountValue.textContent = '₹' + parseFloat(self.options.amount).toFixed(2);
+    amountValue.style.cssText = 'font-size:32px;font-weight:700;color:#333;';
+    amountDiv.appendChild(amountLabel);
+    amountDiv.appendChild(amountValue);
+    content.appendChild(amountDiv);
+    
+    // Timer
+    var timerDiv = document.createElement('div');
+    timerDiv.id = 'crazzype-timer';
+    timerDiv.style.cssText = 'text-align:center;margin-bottom:25px;padding:10px;background:#fff3cd;border-radius:8px;';
+    var timerText = document.createElement('div');
+    timerText.id = 'crazzype-timer-text';
+    timerText.textContent = 'Time remaining: 5:00';
+    timerText.style.cssText = 'font-size:14px;font-weight:600;color:#856404;';
+    timerDiv.appendChild(timerText);
+    content.appendChild(timerDiv);
+    
+    // QR Code
+    if (orderData.qr_code) {
+      var qrDiv = document.createElement('div');
+      qrDiv.style.cssText = 'text-align:center;margin-bottom:25px;';
+      var qrLabel = document.createElement('div');
+      qrLabel.textContent = 'Scan QR Code to Pay';
+      qrLabel.style.cssText = 'font-size:14px;color:#666;margin-bottom:10px;';
+      var qrImg = document.createElement('img');
+      qrImg.src = orderData.qr_code;
+      qrImg.style.cssText = 'width:200px;height:200px;border:2px solid #e0e0e0;border-radius:8px;padding:10px;background:white;';
+      qrImg.alt = 'Payment QR Code';
+      qrDiv.appendChild(qrLabel);
+      qrDiv.appendChild(qrImg);
+      content.appendChild(qrDiv);
+    }
+    
+    // UPI Payment Link
+    if (orderData.upi_intent_link) {
+      var upiDiv = document.createElement('div');
+      upiDiv.style.cssText = 'text-align:center;margin-bottom:20px;';
+      var upiLabel = document.createElement('div');
+      upiLabel.textContent = 'Or Pay via UPI App';
+      upiLabel.style.cssText = 'font-size:14px;color:#666;margin-bottom:10px;';
+      var upiButton = document.createElement('a');
+      upiButton.href = orderData.upi_intent_link;
+      upiButton.textContent = 'Open UPI App';
+      upiButton.style.cssText = 'display:inline-block;padding:12px 24px;background:#007bff;color:white;text-decoration:none;border-radius:8px;font-weight:600;font-size:16px;';
+      upiButton.onclick = function(e) {
+        // Try to open UPI app
+        window.location.href = orderData.upi_intent_link;
+        e.preventDefault();
       };
-      window.addEventListener('message', messageHandler);
-      
-      // Also poll for URL changes in iframe (for callback URL handling)
-      var pollInterval = setInterval(function() {
-        try {
-          var iframeUrl = iframe.contentWindow.location.href;
-          if (iframeUrl && iframeUrl.includes('status=success')) {
-            var urlParams = new URLSearchParams(iframeUrl.split('?')[1]);
-            var status = urlParams.get('status');
-            var orderId = urlParams.get('order_id');
-            var hash = urlParams.get('hash');
-            
-            if (status === 'success' && orderId && hash) {
-              clearInterval(pollInterval);
-              // Fetch payment details to get payment_id
-              self._fetchPaymentDetails(orderId, hash);
-            }
-          } else if (iframeUrl && iframeUrl.includes('status=failed')) {
-            clearInterval(pollInterval);
-            self._handleFailure({ error_description: 'Payment failed' });
-          }
-        } catch (e) {
-          // Cross-origin error, ignore
-        }
-      }, 1000);
-      
-      // Clean up interval when modal closes
-      var originalClose = self.close;
-      self.close = function() {
-        clearInterval(pollInterval);
-        window.removeEventListener('message', messageHandler);
-        originalClose.call(self);
-      };
-    };
+      upiDiv.appendChild(upiLabel);
+      upiDiv.appendChild(upiButton);
+      content.appendChild(upiDiv);
+    }
+    
+    // Status message
+    var statusDiv = document.createElement('div');
+    statusDiv.id = 'crazzype-status';
+    statusDiv.style.cssText = 'text-align:center;padding:10px;margin-top:20px;font-size:14px;color:#666;';
+    statusDiv.textContent = 'Waiting for payment...';
+    content.appendChild(statusDiv);
     
     modal.appendChild(closeBtn);
-    modal.appendChild(iframe);
+    modal.appendChild(content);
     overlay.appendChild(modal);
     document.body.appendChild(overlay);
     
@@ -276,44 +304,137 @@
     }
     
     this.paymentWindow = overlay;
+    
+    // Start timer
+    this._startTimer();
+    
+    // Start polling for payment status
+    this._startPolling();
   };
 
   /**
-   * Open payment in new window
+   * Start payment timer
    */
-  CrazzyPe.prototype._openWindow = function(url) {
-    var width = 600;
-    var height = 700;
-    var left = (screen.width - width) / 2;
-    var top = (screen.height - height) / 2;
-    
-    this.paymentWindow = window.open(
-      url,
-      'CrazzyPePayment',
-      'width=' + width + ',height=' + height + ',left=' + left + ',top=' + top + ',resizable=yes,scrollbars=yes'
-    );
-    
-    if (!this.paymentWindow) {
-      this._handleError('Popup blocked. Please allow popups for this site.');
-      return;
-    }
-    
-    // Poll for window close
+  CrazzyPe.prototype._startTimer = function() {
     var self = this;
-    var pollTimer = setInterval(function() {
-      if (self.paymentWindow.closed) {
-        clearInterval(pollTimer);
-        if (self.options.onDismiss) {
-          self.options.onDismiss();
+    this.timeLeft = 300; // 5 minutes
+    
+    var timerElement = document.getElementById('crazzype-timer-text');
+    if (!timerElement) return;
+    
+    this.paymentTimer = setInterval(function() {
+      self.timeLeft--;
+      
+      if (self.timeLeft <= 0) {
+        clearInterval(self.paymentTimer);
+        if (timerElement) {
+          timerElement.textContent = 'Payment expired';
+          timerElement.style.color = '#dc3545';
         }
+        self._handleFailure({ error_description: 'Payment timeout' });
+        return;
       }
-    }, 500);
+      
+      var minutes = Math.floor(self.timeLeft / 60);
+      var seconds = self.timeLeft % 60;
+      if (timerElement) {
+        timerElement.textContent = 'Time remaining: ' + minutes + ':' + (seconds < 10 ? '0' : '') + seconds;
+      }
+    }, 1000);
+  };
+
+  /**
+   * Start polling for payment status
+   */
+  CrazzyPe.prototype._startPolling = function() {
+    var self = this;
+    var orderId = self.options.order_id;
+    var maxPollingDuration = 5 * 60 * 1000; // 5 minutes
+    var startTime = Date.now();
+    
+    this.pollingInterval = setInterval(function() {
+      // Check if polling should stop
+      if (Date.now() - startTime >= maxPollingDuration) {
+        clearInterval(self.pollingInterval);
+        self._handleFailure({ error_description: 'Payment timeout' });
+        return;
+      }
+      
+      // Check payment status
+      fetch(API_BASE_URL + '/api/orders/check-order-status', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + self.options.key
+        },
+        body: JSON.stringify({
+          order_id: orderId
+        })
+      })
+      .then(function(res) {
+        return res.json();
+      })
+      .then(function(data) {
+        if (data.status === 'success' && data.txn_status === 'TXN_SUCCESS') {
+          // Payment successful
+          clearInterval(self.pollingInterval);
+          clearInterval(self.paymentTimer);
+          
+          var statusDiv = document.getElementById('crazzype-status');
+          if (statusDiv) {
+            statusDiv.textContent = 'Payment successful!';
+            statusDiv.style.color = '#28a745';
+          }
+          
+          // Extract payment details
+          var hash = '';
+          if (data.data && data.data.redirect_url) {
+            var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
+            if (hashMatch) {
+              hash = decodeURIComponent(hashMatch[1]);
+            }
+          }
+          
+          var paymentData = {
+            order_id: orderId,
+            payment_id: data.data.upi_txn_id || data.data.payment_id,
+            signature: hash,
+            hash: hash
+          };
+          
+          // Wait a moment before handling success
+          setTimeout(function() {
+            self._handleSuccess(paymentData);
+          }, 1000);
+        } else if (data.status === 'error' || data.txn_status === 'TXN_FAILED') {
+          // Payment failed
+          clearInterval(self.pollingInterval);
+          clearInterval(self.paymentTimer);
+          self._handleFailure({ error_description: data.message || 'Payment failed' });
+        }
+        // Otherwise, continue polling
+      })
+      .catch(function(error) {
+        console.error('Error checking payment status:', error);
+        // Continue polling on error
+      });
+    }, 2000); // Poll every 2 seconds
   };
 
   /**
    * Close payment window/modal
    */
   CrazzyPe.prototype.close = function() {
+    if (this.paymentTimer) {
+      clearInterval(this.paymentTimer);
+      this.paymentTimer = null;
+    }
+    
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+    
     if (this.paymentWindow) {
       if (this.paymentWindow.remove) {
         // Modal overlay
@@ -375,6 +496,17 @@
       this._verifySignature(response)
         .then(function() {
           // Call handler after verification
+          if (self.options.handler) {
+            self.options.handler(response);
+          }
+          
+          if (self.options.onSuccess) {
+            self.options.onSuccess(response);
+          }
+        })
+        .catch(function(error) {
+          console.error('Signature verification failed:', error);
+          // Still call handler
           if (self.options.handler) {
             self.options.handler(response);
           }
@@ -462,45 +594,6 @@
   };
 
   /**
-   * Fetch payment details from callback URL
-   */
-  CrazzyPe.prototype._fetchPaymentDetails = function(orderId, hash) {
-    var self = this;
-    
-    // Check order status to get payment details
-    fetch(API_BASE_URL + '/api/orders/check-order-status', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + this.options.key
-      },
-      body: JSON.stringify({
-        order_id: orderId
-      })
-    })
-    .then(function(res) {
-      return res.json();
-    })
-    .then(function(data) {
-      if (data.status === 'success' && data.data) {
-        var paymentData = {
-          order_id: orderId,
-          payment_id: data.data.upi_txn_id || data.data.payment_id,
-          signature: hash,
-          hash: hash
-        };
-        self._handleSuccess(paymentData);
-      } else {
-        self._handleFailure({ error_description: 'Payment verification failed' });
-      }
-    })
-    .catch(function(error) {
-      console.error('Error fetching payment details:', error);
-      self._handleFailure({ error_description: 'Failed to verify payment' });
-    });
-  };
-
-  /**
    * Verify payment signature
    */
   CrazzyPe.prototype._verifySignature = function(response) {
@@ -530,7 +623,6 @@
     .then(function(data) {
       if (data.verified) {
         console.log('Payment signature verified successfully');
-        // Optionally call a success callback
         if (self.options.onVerificationSuccess) {
           self.options.onVerificationSuccess(data);
         }
