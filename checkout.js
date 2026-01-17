@@ -58,17 +58,17 @@
   CrazzyPe.prototype.open = function() {
     var self = this;
     
-    // First, check if user has incognito feature
-    this._checkIncognitoFeature()
-      .then(function(hasFeature) {
-        if (!hasFeature) {
-          self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js');
-          return;
-        }
-        
-        // Fetch order details and payment URL
-        return self._fetchPaymentUrl();
-      })
+        // First, check if user has incognito feature
+        this._checkIncognitoFeature()
+          .then(function(hasFeature) {
+            if (!hasFeature) {
+              self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js. If you already have the feature, please check your API key and try again.');
+              return;
+            }
+            
+            // Fetch order details and payment URL
+            return self._fetchPaymentUrl();
+          })
       .then(function(data) {
         if (!data) return; // Error already handled
         
@@ -102,6 +102,15 @@
         }
       })
       .then(function(response) {
+        // Handle non-OK responses
+        if (!response.ok) {
+          // Try to parse error response
+          return response.json().then(function(data) {
+            throw new Error(data.message || 'Failed to check incognito feature. Status: ' + response.status);
+          }).catch(function() {
+            throw new Error('Server error (Status: ' + response.status + '). Please try again later.');
+          });
+        }
         return response.json();
       })
       .then(function(data) {
@@ -113,7 +122,9 @@
       })
       .catch(function(error) {
         console.error('Error checking incognito feature:', error);
-        reject(error);
+        // Don't reject, just resolve with false to allow graceful degradation
+        // The error will be shown when trying to open payment
+        resolve(false);
       });
     });
   };
@@ -149,6 +160,15 @@
         })
       })
       .then(function(response) {
+        // Handle non-OK responses
+        if (!response.ok) {
+          // Try to parse error response
+          return response.json().then(function(data) {
+            throw new Error(data.message || 'Failed to create order. Status: ' + response.status);
+          }).catch(function() {
+            throw new Error('Server error (Status: ' + response.status + '). Please check your API key and try again.');
+          });
+        }
         return response.json();
       })
       .then(function(data) {
@@ -161,6 +181,7 @@
         }
       })
       .catch(function(error) {
+        console.error('Error creating order:', error);
         reject(error);
       });
     });
