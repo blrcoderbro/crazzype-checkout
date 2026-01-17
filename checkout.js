@@ -57,8 +57,12 @@
   CrazzyPe.prototype.open = function() {
     var self = this;
     
-    // First, check if user has incognito feature
-    this._checkIncognitoFeature()
+    // First, validate origin
+    this._validateOrigin()
+      .then(function() {
+        // Origin validated, check if user has incognito feature
+        return self._checkIncognitoFeature();
+      })
       .then(function(hasFeature) {
         if (!hasFeature) {
           self._handleError('Incognito checkout is a premium feature. Please upgrade your plan to use checkout.js. If you already have the feature, please check your API key and try again.');
@@ -82,6 +86,67 @@
       .catch(function(error) {
         self._handleError(error.message || 'Failed to initialize payment');
       });
+  };
+
+  /**
+   * Validate current origin against API key allowed origins
+   */
+  CrazzyPe.prototype._validateOrigin = function() {
+    var self = this;
+    
+    return new Promise(function(resolve, reject) {
+      // Get current origin
+      var currentOrigin = window.location.origin;
+      
+      // Use check-incognito-feature endpoint to validate origin
+      // This endpoint uses middleware that validates origin
+      fetch(API_BASE_URL + '/api/orders/check-incognito-feature', {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + self.options.key
+        }
+      })
+      .then(function(response) {
+        // If 403, origin is not allowed
+        if (response.status === 403) {
+          return response.json().then(function(data) {
+            throw new Error('Origin not allowed: ' + currentOrigin + '. Please add this domain to your API key allowed origins in the CrazzyPe dashboard.');
+          });
+        }
+        
+        // If 401, API key is invalid
+        if (response.status === 401) {
+          return response.json().then(function(data) {
+            throw new Error('Invalid API key. Please check your API key and try again.');
+          });
+        }
+        
+        // If OK, origin is validated
+        if (response.ok) {
+          resolve();
+          return;
+        }
+        
+        // Other errors
+        return response.json().then(function(data) {
+          throw new Error(data.message || 'Failed to validate origin');
+        });
+      })
+      .catch(function(error) {
+        // Network errors or other issues
+        if (error.message && error.message.includes('Origin not allowed')) {
+          reject(error);
+        } else if (error.message && error.message.includes('Invalid API key')) {
+          reject(error);
+        } else {
+          // For other errors, we'll allow it to proceed (might be network issue)
+          // The actual API calls will validate origin anyway
+          console.warn('Origin validation warning:', error.message);
+          resolve(); // Allow to proceed, backend will validate on actual calls
+        }
+      });
+    });
   };
 
   /**
