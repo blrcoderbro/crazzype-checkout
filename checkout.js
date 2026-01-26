@@ -968,7 +968,7 @@
       qrData = 'https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=' + encodeURIComponent(data.upi_intent);
     } else if (data && data.upiId) {
       // Construct UPI link from upiId and amount
-      var amount = this.options.amount;
+      var amount = this._normalizeAmountRupees(this.options.amount);
       // Convert from paise to rupees not needed
       // if (amount >= 100 && Number.isInteger(parseFloat(amount))) {
       //   amount = parseFloat(amount) / 100;
@@ -1399,7 +1399,7 @@
         },
         body: JSON.stringify({
           txn_id: orderId,
-          amount: self.options.amount.toString(),
+          amount: self._normalizeAmountRupees(self.options.amount).toString(),
           p_info: self.options.description,
           customer_name: self.options.prefill.name || 'Customer',
           customer_email: self.options.prefill.email || '',
@@ -1509,20 +1509,21 @@
   };
 
   /**
+   * Normalize amount to whole rupees (no paise)
+   */
+  CrazzyPe.prototype._normalizeAmountRupees = function(amount) {
+    var num = parseFloat(amount);
+    if (isNaN(num)) return 0;
+    return Math.round(num);
+  };
+
+  /**
    * Format amount for display
    */
   CrazzyPe.prototype._formatAmount = function(amount) {
-    var num = parseFloat(amount);
-    if (isNaN(num)) return '0.00';
-
-    // Handle paise (if amount > 100, assume it's in paise) not in paise
-    // if (num >= 100 && Number.isInteger(num)) {
-    //   num = num / 100;
-    // }
-
+    var num = this._normalizeAmountRupees(amount);
     return num.toLocaleString('en-IN', {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
+      maximumFractionDigits: 0
     });
   };
 
