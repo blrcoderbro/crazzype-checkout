@@ -1515,10 +1515,10 @@
     var num = parseFloat(amount);
     if (isNaN(num)) return '0.00';
 
-    // Handle paise (if amount > 100, assume it's in paise)
-    if (num >= 100 && Number.isInteger(num)) {
-      num = num / 100;
-    }
+    // Handle paise (if amount > 100, assume it's in paise) not in paise
+    // if (num >= 100 && Number.isInteger(num)) {
+    //   num = num / 100;
+    // }
 
     return num.toLocaleString('en-IN', {
       minimumFractionDigits: 2,
