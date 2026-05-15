@@ -1,5 +1,5 @@
 /**
- * CrazzyPe Checkout.js v3.0
+ * CrazzyPe Checkout.js v3.1
  */
 
 (function () {
@@ -645,6 +645,117 @@
     .cpz-processing-dot:nth-child(3) {
       animation-delay: 0.2s;
     }
+
+    /* BharatPe UTR modal (inside checkout overlay — not window.prompt) */
+    .cpz-utr-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(15, 23, 42, 0.82);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 30;
+      padding: 16px;
+      animation: cpz-fade-in 0.2s ease-out;
+    }
+
+    .cpz-utr-card {
+      width: 100%;
+      max-width: 360px;
+      background: linear-gradient(
+        160deg,
+        rgba(255, 255, 255, 0.98) 0%,
+        rgba(249, 250, 251, 0.95) 100%
+      );
+      border: 1px solid ${THEME.borderLight};
+      border-top: 3px solid ${THEME.primary};
+      border-radius: 18px;
+      padding: 20px;
+      box-shadow:
+        0 24px 50px rgba(0, 0, 0, 0.35),
+        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+      animation: cpz-scale-in 0.25s ease-out;
+    }
+
+    .cpz-utr-head {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      margin-bottom: 2px;
+    }
+
+    .cpz-utr-title {
+      font-size: 17px;
+      font-weight: 600;
+      color: ${THEME.foreground};
+      margin: 0;
+    }
+
+    .cpz-utr-pill {
+      border: 1px solid ${THEME.border};
+      background: ${THEME.background};
+      color: ${THEME.foreground};
+      border-radius: 999px;
+      padding: 3px 8px;
+      font-size: 11px;
+      font-weight: 600;
+    }
+
+    .cpz-utr-desc {
+      font-size: 13px;
+      color: ${THEME.muted};
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+
+    .cpz-utr-input {
+      width: 100%;
+      border: 1px solid ${THEME.border};
+      border-radius: 10px;
+      padding: 11px 12px;
+      font-size: 14px;
+      font-family: 'SF Mono', Monaco, monospace;
+      letter-spacing: 0.04em;
+      color: ${THEME.foreground};
+      background: ${THEME.background};
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .cpz-utr-input:focus {
+      border-color: ${THEME.primary};
+      box-shadow: 0 0 0 3px rgba(34, 197, 94, 0.15);
+    }
+
+    .cpz-utr-hint {
+      font-size: 11px;
+      color: ${THEME.mutedLight};
+      margin-top: 6px;
+      min-height: 16px;
+    }
+
+    .cpz-utr-hint.error {
+      color: ${THEME.error};
+    }
+
+    .cpz-utr-actions {
+      display: flex;
+      gap: 8px;
+      justify-content: flex-end;
+      margin-top: 16px;
+    }
+
+    .cpz-utr-actions .cpz-status-button {
+      min-width: 110px;
+    }
+
+    .cpz-utr-actions .cpz-status-button:disabled {
+      opacity: 0.65;
+      cursor: not-allowed;
+    }
   `;
 
   // SVG Icons
@@ -720,6 +831,7 @@
     this.paymentTimer = null;
     this.utrPromptTimeout = null;
     this.utrPromptShown = false;
+    this.utrLayer = null;
     this.timeLeft = 300; // 5 minutes
     this.timerCircumference = 2 * Math.PI * 18;
   }
@@ -755,7 +867,11 @@
           self.orderDetails = data;
           self._renderModal("payment", data);
           self._startTimer();
-          self._startPolling();
+          if (self._isBharatPeOrder(data)) {
+            self._scheduleBharatPeUtrReminder();
+          } else {
+            self._startPolling();
+          }
         }
       })
       .catch(function (error) {
@@ -1168,6 +1284,27 @@
     return button;
   };
 
+  CrazzyPe.prototype._isBharatPeOrder = function (data) {
+    var merchantId = String(
+      (data && data.merchantId) ||
+        (this.orderDetails && this.orderDetails.merchantId) ||
+        "",
+    )
+      .trim()
+      .toLowerCase();
+    return merchantId === "bharatpe";
+  };
+
+  CrazzyPe.prototype._scheduleBharatPeUtrReminder = function () {
+    var self = this;
+    if (this.utrPromptTimeout) clearTimeout(this.utrPromptTimeout);
+    this.utrPromptTimeout = setTimeout(function () {
+      if (!self.overlay || self.utrPromptShown) return;
+      self.utrPromptShown = true;
+      self._promptBharatPeUtr();
+    }, 60000);
+  };
+
   CrazzyPe.prototype._createUtrEntryButton = function (data) {
     var self = this;
     var button = document.createElement("button");
@@ -1181,6 +1318,7 @@
         (data && data.order_id) ||
         (self.orderDetails && self.orderDetails.order_id);
       if (!orderId) return;
+      self.utrPromptShown = true;
       self._promptBharatPeUtr(orderId);
     };
     return button;
@@ -1481,49 +1619,105 @@
 
   CrazzyPe.prototype._promptBharatPeUtr = function (orderId) {
     var self = this;
-    self._showUtrPrompt().then(function (normalizedUtr) {
-      if (!normalizedUtr) return;
+    var resolvedOrderId =
+      orderId ||
+      this.options.order_id ||
+      (this.orderDetails && this.orderDetails.order_id);
+    if (!resolvedOrderId) return;
 
-      fetch(API_BASE_URL + "/api/orders/check-order-status", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + self.options.key,
-        },
-        body: JSON.stringify({ order_id: orderId, utr: normalizedUtr }),
+    self._openUtrModal().then(function (normalizedUtr) {
+      if (!normalizedUtr) return;
+      self._verifyBharatPeUtr(resolvedOrderId, normalizedUtr);
+    });
+  };
+
+  CrazzyPe.prototype._verifyBharatPeUtr = function (orderId, normalizedUtr) {
+    var self = this;
+
+    fetch(API_BASE_URL + "/api/orders/check-order-status", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + self.options.key,
+      },
+      body: JSON.stringify({ order_id: orderId, utr: normalizedUtr }),
+    })
+      .then(function (res) {
+        return res.json();
       })
-        .then(function (res) {
-          return res.json();
-        })
-        .then(function (data) {
-          if (data.status === "success" && data.txn_status === "TXN_SUCCESS") {
+      .then(function (data) {
+        if (data.status === "success" && data.txn_status === "TXN_SUCCESS") {
+          self._closeUtrModal();
+          clearInterval(self.paymentTimer);
+          self._renderModal("processing");
+          setTimeout(function () {
+            var hash = "";
+            if (data.data && data.data.redirect_url) {
+              var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
+              if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
+            }
+            self._handleSuccess({
+              order_id: orderId,
+              payment_id: data.data && data.data.upi_txn_id,
+              signature: hash,
+              hash: hash,
+            });
+          }, 1200);
+          return;
+        }
+
+        if (
+          data.txn_status === "TXN_ALREADY_PROCESSED" ||
+          data.txn_status === "ALREADY_COMPLETED"
+        ) {
+          if (data.status === "success") {
+            self._closeUtrModal();
             clearInterval(self.paymentTimer);
             self._renderModal("processing");
             setTimeout(function () {
-              var hash = "";
-              if (data.data && data.data.redirect_url) {
-                var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
-                if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
-              }
-              self._handleSuccess({
-                order_id: orderId,
-                payment_id: data.data && data.data.upi_txn_id,
-                signature: hash,
-                hash: hash,
-              });
-            }, 1200);
-          } else {
-            self._showInlineNotice(
-              data.message || "Payment is still pending. Please try again shortly.",
-            );
+              self._handleSuccess({ order_id: orderId });
+            }, 800);
+            return;
           }
-        })
-        .catch(function () {
-          self._showInlineNotice(
-            "Unable to verify payment right now. Please try again.",
-          );
+          self._openUtrModal({
+            errorMessage: data.message || "Transaction already processed.",
+          }).then(function (retryUtr) {
+            if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
+          });
+          return;
+        }
+
+        if (data.txn_status === "AMOUNT_TAMPERED") {
+          var amtMsg =
+            data.amt != null && data.amtt != null
+              ? "Amount tampered. Order: ₹" +
+                data.amt +
+                ", paid: ₹" +
+                data.amtt +
+                "."
+              : data.message ||
+                "Amount tampered. Paid amount does not match order amount.";
+          self._openUtrModal({ errorMessage: amtMsg }).then(function (retryUtr) {
+            if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
+          });
+          return;
+        }
+
+        self._openUtrModal({
+          errorMessage:
+            data.message ||
+            "Payment not found yet. Confirm UTR and try again.",
+        }).then(function (retryUtr) {
+          if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
         });
-    });
+      })
+      .catch(function () {
+        self._openUtrModal({
+          errorMessage: "Unable to verify payment right now. Please try again.",
+        }).then(function (retryUtr) {
+          if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
+        });
+      });
   };
 
   CrazzyPe.prototype._showInlineNotice = function (message) {
@@ -1545,100 +1739,92 @@
     }, 2500);
   };
 
-  CrazzyPe.prototype._showUtrPrompt = function () {
+  CrazzyPe.prototype._closeUtrModal = function () {
+    if (this.utrLayer && this.utrLayer.parentNode) {
+      this.utrLayer.parentNode.removeChild(this.utrLayer);
+    }
+    this.utrLayer = null;
+  };
+
+  CrazzyPe.prototype._openUtrModal = function (options) {
+    var self = this;
+    options = options || {};
+
     return new Promise(function (resolve) {
+      if (!self.overlay) {
+        resolve(null);
+        return;
+      }
+      self._closeUtrModal();
+
       var backdrop = document.createElement("div");
-      backdrop.style.position = "fixed";
-      backdrop.style.inset = "0";
-      backdrop.style.background = "rgba(0,0,0,0.55)";
-      backdrop.style.zIndex = "999998";
-      backdrop.style.display = "flex";
-      backdrop.style.alignItems = "center";
-      backdrop.style.justifyContent = "center";
-      backdrop.style.padding = "16px";
+      backdrop.className = "cpz-utr-overlay";
 
       var panel = document.createElement("div");
-      panel.style.width = "100%";
-      panel.style.maxWidth = "360px";
-      panel.style.background = "#ffffff";
-      panel.style.borderRadius = "12px";
-      panel.style.padding = "16px";
-      panel.style.boxShadow = "0 12px 40px rgba(0,0,0,0.35)";
-      panel.style.fontFamily = "Inter, Arial, sans-serif";
+      panel.className = "cpz-utr-card";
+
+      var head = document.createElement("div");
+      head.className = "cpz-utr-head";
 
       var title = document.createElement("div");
+      title.className = "cpz-utr-title";
       title.textContent = "Payment done?";
-      title.style.fontSize = "18px";
-      title.style.fontWeight = "600";
-      title.style.color = "#111827";
-      title.style.marginBottom = "6px";
-      panel.appendChild(title);
+      head.appendChild(title);
+
+      var pill = document.createElement("div");
+      pill.className = "cpz-utr-pill";
+      pill.textContent = "BharatPe";
+      head.appendChild(pill);
+      panel.appendChild(head);
 
       var desc = document.createElement("div");
-      desc.textContent = "Enter UTR / bank reference number to verify payment.";
-      desc.style.fontSize = "13px";
-      desc.style.color = "#4b5563";
-      desc.style.marginBottom = "12px";
+      desc.className = "cpz-utr-desc";
+      desc.textContent =
+        "Enter UTR / bank reference number to verify your BharatPe payment.";
       panel.appendChild(desc);
 
       var input = document.createElement("input");
       input.type = "text";
+      input.className = "cpz-utr-input";
       input.placeholder = "Enter UTR";
       input.autocomplete = "off";
-      input.style.width = "100%";
-      input.style.boxSizing = "border-box";
-      input.style.border = "1px solid #d1d5db";
-      input.style.borderRadius = "8px";
-      input.style.padding = "10px 12px";
-      input.style.fontSize = "14px";
-      input.style.outline = "none";
       panel.appendChild(input);
 
       var error = document.createElement("div");
-      error.style.height = "18px";
-      error.style.fontSize = "12px";
-      error.style.color = "#dc2626";
-      error.style.marginTop = "6px";
+      error.className = "cpz-utr-hint";
+      if (options.errorMessage) {
+        error.textContent = options.errorMessage;
+        error.classList.add("error");
+      } else {
+        error.textContent = "Only one-time UTR is accepted.";
+      }
       panel.appendChild(error);
 
       var actions = document.createElement("div");
-      actions.style.display = "flex";
-      actions.style.gap = "8px";
-      actions.style.justifyContent = "flex-end";
-      actions.style.marginTop = "10px";
+      actions.className = "cpz-utr-actions";
 
       var cancel = document.createElement("button");
       cancel.type = "button";
+      cancel.className = "cpz-status-button secondary";
       cancel.textContent = "Continue waiting";
-      cancel.style.border = "1px solid #d1d5db";
-      cancel.style.background = "#fff";
-      cancel.style.color = "#111827";
-      cancel.style.borderRadius = "8px";
-      cancel.style.padding = "8px 10px";
-      cancel.style.cursor = "pointer";
 
       var confirm = document.createElement("button");
       confirm.type = "button";
+      confirm.className = "cpz-status-button";
       confirm.textContent = "Verify Payment";
-      confirm.style.border = "none";
-      confirm.style.background = "#111827";
-      confirm.style.color = "#fff";
-      confirm.style.borderRadius = "8px";
-      confirm.style.padding = "8px 12px";
-      confirm.style.cursor = "pointer";
 
       actions.appendChild(cancel);
       actions.appendChild(confirm);
       panel.appendChild(actions);
       backdrop.appendChild(panel);
-      document.body.appendChild(backdrop);
+      self.overlay.appendChild(backdrop);
+      self.utrLayer = backdrop;
       setTimeout(function () {
         input.focus();
       }, 20);
 
       function close(value) {
-        if (backdrop && backdrop.parentNode)
-          backdrop.parentNode.removeChild(backdrop);
+        self._closeUtrModal();
         resolve(value);
       }
 
@@ -1655,8 +1841,12 @@
           .toUpperCase();
         if (normalized.length < 6) {
           error.textContent = "Please enter a valid UTR.";
+          error.classList.add("error");
           return;
         }
+        confirm.disabled = true;
+        cancel.disabled = true;
+        confirm.textContent = "Verifying...";
         close(normalized);
       };
       input.addEventListener("keydown", function (e) {
@@ -1854,6 +2044,7 @@
       this.utrPromptTimeout = null;
     }
     this.utrPromptShown = false;
+    this._closeUtrModal();
 
     if (this.overlay) {
       this.overlay.remove();
