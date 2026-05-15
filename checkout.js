@@ -1481,59 +1481,188 @@
 
   CrazzyPe.prototype._promptBharatPeUtr = function (orderId) {
     var self = this;
-    var utr = window.prompt(
-      "Payment done? Enter UTR / bank reference number to verify.",
-    );
-    if (!utr) return;
+    self._showUtrPrompt().then(function (normalizedUtr) {
+      if (!normalizedUtr) return;
 
-    var normalizedUtr = String(utr)
-      .replace(/\s+/g, "")
-      .replace(/[^0-9A-Za-z]/g, "")
-      .toUpperCase();
-
-    if (normalizedUtr.length < 6) {
-      window.alert("Please enter a valid UTR.");
-      return;
-    }
-
-    fetch(API_BASE_URL + "/api/orders/check-order-status", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + self.options.key,
-      },
-      body: JSON.stringify({ order_id: orderId, utr: normalizedUtr }),
-    })
-      .then(function (res) {
-        return res.json();
+      fetch(API_BASE_URL + "/api/orders/check-order-status", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: "Bearer " + self.options.key,
+        },
+        body: JSON.stringify({ order_id: orderId, utr: normalizedUtr }),
       })
-      .then(function (data) {
-        if (data.status === "success" && data.txn_status === "TXN_SUCCESS") {
-          clearInterval(self.paymentTimer);
-          self._renderModal("processing");
-          setTimeout(function () {
-            var hash = "";
-            if (data.data && data.data.redirect_url) {
-              var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
-              if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
-            }
-            self._handleSuccess({
-              order_id: orderId,
-              payment_id: data.data && data.data.upi_txn_id,
-              signature: hash,
-              hash: hash,
-            });
-          }, 1200);
-        } else {
-          window.alert(
-            data.message ||
-              "Payment is still pending. Please try again shortly.",
+        .then(function (res) {
+          return res.json();
+        })
+        .then(function (data) {
+          if (data.status === "success" && data.txn_status === "TXN_SUCCESS") {
+            clearInterval(self.paymentTimer);
+            self._renderModal("processing");
+            setTimeout(function () {
+              var hash = "";
+              if (data.data && data.data.redirect_url) {
+                var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
+                if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
+              }
+              self._handleSuccess({
+                order_id: orderId,
+                payment_id: data.data && data.data.upi_txn_id,
+                signature: hash,
+                hash: hash,
+              });
+            }, 1200);
+          } else {
+            self._showInlineNotice(
+              data.message || "Payment is still pending. Please try again shortly.",
+            );
+          }
+        })
+        .catch(function () {
+          self._showInlineNotice(
+            "Unable to verify payment right now. Please try again.",
           );
+        });
+    });
+  };
+
+  CrazzyPe.prototype._showInlineNotice = function (message) {
+    var notice = document.createElement("div");
+    notice.style.position = "fixed";
+    notice.style.left = "50%";
+    notice.style.bottom = "24px";
+    notice.style.transform = "translateX(-50%)";
+    notice.style.background = "#111827";
+    notice.style.color = "#ffffff";
+    notice.style.padding = "10px 14px";
+    notice.style.borderRadius = "8px";
+    notice.style.fontSize = "13px";
+    notice.style.zIndex = "999999";
+    notice.textContent = message || "Something went wrong";
+    document.body.appendChild(notice);
+    setTimeout(function () {
+      if (notice && notice.parentNode) notice.parentNode.removeChild(notice);
+    }, 2500);
+  };
+
+  CrazzyPe.prototype._showUtrPrompt = function () {
+    return new Promise(function (resolve) {
+      var backdrop = document.createElement("div");
+      backdrop.style.position = "fixed";
+      backdrop.style.inset = "0";
+      backdrop.style.background = "rgba(0,0,0,0.55)";
+      backdrop.style.zIndex = "999998";
+      backdrop.style.display = "flex";
+      backdrop.style.alignItems = "center";
+      backdrop.style.justifyContent = "center";
+      backdrop.style.padding = "16px";
+
+      var panel = document.createElement("div");
+      panel.style.width = "100%";
+      panel.style.maxWidth = "360px";
+      panel.style.background = "#ffffff";
+      panel.style.borderRadius = "12px";
+      panel.style.padding = "16px";
+      panel.style.boxShadow = "0 12px 40px rgba(0,0,0,0.35)";
+      panel.style.fontFamily = "Inter, Arial, sans-serif";
+
+      var title = document.createElement("div");
+      title.textContent = "Payment done?";
+      title.style.fontSize = "18px";
+      title.style.fontWeight = "600";
+      title.style.color = "#111827";
+      title.style.marginBottom = "6px";
+      panel.appendChild(title);
+
+      var desc = document.createElement("div");
+      desc.textContent = "Enter UTR / bank reference number to verify payment.";
+      desc.style.fontSize = "13px";
+      desc.style.color = "#4b5563";
+      desc.style.marginBottom = "12px";
+      panel.appendChild(desc);
+
+      var input = document.createElement("input");
+      input.type = "text";
+      input.placeholder = "Enter UTR";
+      input.autocomplete = "off";
+      input.style.width = "100%";
+      input.style.boxSizing = "border-box";
+      input.style.border = "1px solid #d1d5db";
+      input.style.borderRadius = "8px";
+      input.style.padding = "10px 12px";
+      input.style.fontSize = "14px";
+      input.style.outline = "none";
+      panel.appendChild(input);
+
+      var error = document.createElement("div");
+      error.style.height = "18px";
+      error.style.fontSize = "12px";
+      error.style.color = "#dc2626";
+      error.style.marginTop = "6px";
+      panel.appendChild(error);
+
+      var actions = document.createElement("div");
+      actions.style.display = "flex";
+      actions.style.gap = "8px";
+      actions.style.justifyContent = "flex-end";
+      actions.style.marginTop = "10px";
+
+      var cancel = document.createElement("button");
+      cancel.type = "button";
+      cancel.textContent = "Continue waiting";
+      cancel.style.border = "1px solid #d1d5db";
+      cancel.style.background = "#fff";
+      cancel.style.color = "#111827";
+      cancel.style.borderRadius = "8px";
+      cancel.style.padding = "8px 10px";
+      cancel.style.cursor = "pointer";
+
+      var confirm = document.createElement("button");
+      confirm.type = "button";
+      confirm.textContent = "Verify Payment";
+      confirm.style.border = "none";
+      confirm.style.background = "#111827";
+      confirm.style.color = "#fff";
+      confirm.style.borderRadius = "8px";
+      confirm.style.padding = "8px 12px";
+      confirm.style.cursor = "pointer";
+
+      actions.appendChild(cancel);
+      actions.appendChild(confirm);
+      panel.appendChild(actions);
+      backdrop.appendChild(panel);
+      document.body.appendChild(backdrop);
+      setTimeout(function () {
+        input.focus();
+      }, 20);
+
+      function close(value) {
+        if (backdrop && backdrop.parentNode)
+          backdrop.parentNode.removeChild(backdrop);
+        resolve(value);
+      }
+
+      cancel.onclick = function () {
+        close(null);
+      };
+      backdrop.onclick = function (e) {
+        if (e.target === backdrop) close(null);
+      };
+      confirm.onclick = function () {
+        var normalized = String(input.value || "")
+          .replace(/\s+/g, "")
+          .replace(/[^0-9A-Za-z]/g, "")
+          .toUpperCase();
+        if (normalized.length < 6) {
+          error.textContent = "Please enter a valid UTR.";
+          return;
         }
-      })
-      .catch(function () {
-        window.alert("Unable to verify payment right now. Please try again.");
+        close(normalized);
+      };
+      input.addEventListener("keydown", function (e) {
+        if (e.key === "Enter") confirm.click();
       });
+    });
   };
 
   /**
