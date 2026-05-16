@@ -9,6 +9,34 @@
   var API_BASE_URL =
     window.CRAZZYPE_API_URL || "https://merchants.crazzype.com";
 
+  function normalizeApiBase(url) {
+    return String(url || "")
+      .trim()
+      .replace(/\/+$/, "")
+      .replace(/\/api$/i, "");
+  }
+
+  function apiOrdersUrl(path) {
+    var base = normalizeApiBase(API_BASE_URL);
+    var p = path.charAt(0) === "/" ? path : "/" + path;
+    return base + p;
+  }
+
+  function apiAuthHeaders(apiKey) {
+    var headers = {
+      "Content-Type": "application/json",
+      Authorization: "Bearer " + apiKey,
+    };
+    try {
+      if (typeof window !== "undefined" && window.location && window.location.origin) {
+        headers["X-API-Origin"] = window.location.origin;
+      }
+    } catch (e) {
+      /* ignore */
+    }
+    return headers;
+  }
+
   // Theme Configuration
   var THEME = {
     primary: "#22c55e",
@@ -1562,12 +1590,9 @@
     if (!orderId) return;
 
     this.pollingInterval = setInterval(function () {
-      fetch(API_BASE_URL + "/api/orders/check-order-status", {
+      fetch(apiOrdersUrl("/api/orders/check-order-status"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + self.options.key,
-        },
+        headers: apiAuthHeaders(self.options.key),
         body: JSON.stringify({ order_id: orderId }),
       })
         .then(function (res) {
@@ -1594,11 +1619,15 @@
                 hash: hash,
               });
             }, 1500);
-          } else if (data.txn_status === "TXN_FAILED") {
+          } else if (
+            data.txn_status === "TXN_FAILED" ||
+            data.txn_status === "TXN_ALREADY_PROCESSED" ||
+            data.txn_status === "AMOUNT_TAMPERED"
+          ) {
             clearInterval(self.pollingInterval);
             clearInterval(self.paymentTimer);
             self._handleFailure({
-              error_description: data.message || "Payment failed",
+              error_description: data.message || "Payment could not be completed",
             });
           } else if (
             data.txn_status === "MISSING_PARAMETER" &&
@@ -1634,13 +1663,13 @@
   CrazzyPe.prototype._verifyBharatPeUtr = function (orderId, normalizedUtr) {
     var self = this;
 
-    fetch(API_BASE_URL + "/api/orders/check-order-status", {
+    fetch(apiOrdersUrl("/api/orders/check-order-status"), {
       method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: "Bearer " + self.options.key,
-      },
-      body: JSON.stringify({ order_id: orderId, utr: normalizedUtr }),
+      headers: apiAuthHeaders(self.options.key),
+      body: JSON.stringify({
+        order_id: orderId,
+        utr: normalizedUtr,
+      }),
     })
       .then(function (res) {
         return res.json();
@@ -1666,23 +1695,9 @@
           return;
         }
 
-        if (
-          data.txn_status === "TXN_ALREADY_PROCESSED" ||
-          data.txn_status === "ALREADY_COMPLETED"
-        ) {
-          if (data.status === "success") {
-            self._closeUtrModal();
-            clearInterval(self.paymentTimer);
-            self._renderModal("processing");
-            setTimeout(function () {
-              self._handleSuccess({ order_id: orderId });
-            }, 800);
-            return;
-          }
+        if (data.txn_status === "TXN_ALREADY_PROCESSED") {
           self._openUtrModal({
             errorMessage: data.message || "Transaction already processed.",
-          }).then(function (retryUtr) {
-            if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
           });
           return;
         }
@@ -1700,6 +1715,11 @@
           self._openUtrModal({ errorMessage: amtMsg }).then(function (retryUtr) {
             if (retryUtr) self._verifyBharatPeUtr(orderId, retryUtr);
           });
+          return;
+        }
+
+        if (data.status === "error" && data.message) {
+          self._openUtrModal({ errorMessage: data.message });
           return;
         }
 
@@ -1862,12 +1882,9 @@
     var self = this;
 
     return new Promise(function (resolve, reject) {
-      fetch(API_BASE_URL + "/api/orders/check-incognito-feature", {
+      fetch(apiOrdersUrl("/api/orders/check-incognito-feature"), {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + self.options.key,
-        },
+        headers: apiAuthHeaders(self.options.key),
       })
         .then(function (response) {
           if (response.status === 403) {
@@ -1906,12 +1923,9 @@
     var self = this;
 
     return new Promise(function (resolve) {
-      fetch(API_BASE_URL + "/api/orders/check-incognito-feature", {
+      fetch(apiOrdersUrl("/api/orders/check-incognito-feature"), {
         method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + self.options.key,
-        },
+        headers: apiAuthHeaders(self.options.key),
       })
         .then(function (res) {
           return res.json();
@@ -1936,12 +1950,9 @@
         self.options.order_id ||
         "order_" + Date.now() + "_" + Math.random().toString(36).substr(2, 9);
 
-      fetch(API_BASE_URL + "/api/orders/create-order", {
+      fetch(apiOrdersUrl("/api/orders/create-order"), {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: "Bearer " + self.options.key,
-        },
+        headers: apiAuthHeaders(self.options.key),
         body: JSON.stringify({
           txn_id: orderId,
           amount: self._normalizeAmountRupees(self.options.amount).toString(),
