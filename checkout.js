@@ -691,19 +691,14 @@
 
     .cpz-utr-card {
       width: 100%;
-      max-width: 360px;
-      background: linear-gradient(
-        160deg,
-        rgba(255, 255, 255, 0.98) 0%,
-        rgba(249, 250, 251, 0.95) 100%
-      );
-      border: 1px solid ${THEME.borderLight};
-      border-top: 3px solid ${THEME.primary};
-      border-radius: 18px;
-      padding: 20px;
+      max-width: 390px;
+      background: ${THEME.background};
+      border: 1px solid ${THEME.border};
+      border-radius: 16px;
+      padding: 22px;
       box-shadow:
-        0 24px 50px rgba(0, 0, 0, 0.35),
-        inset 0 1px 0 rgba(255, 255, 255, 0.65);
+        0 20px 44px rgba(15, 23, 42, 0.34),
+        0 1px 0 rgba(255, 255, 255, 0.35) inset;
       animation: cpz-scale-in 0.25s ease-out;
     }
 
@@ -711,42 +706,42 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      gap: 8px;
-      margin-bottom: 2px;
+      gap: 10px;
+      margin-bottom: 4px;
     }
 
     .cpz-utr-title {
-      font-size: 17px;
-      font-weight: 600;
+      font-size: 18px;
+      font-weight: 700;
       color: ${THEME.foreground};
       margin: 0;
     }
 
     .cpz-utr-pill {
-      border: 1px solid ${THEME.border};
-      background: ${THEME.background};
-      color: ${THEME.foreground};
+      border: 1px solid rgba(37, 99, 235, 0.24);
+      background: rgba(37, 99, 235, 0.1);
+      color: #1d4ed8;
       border-radius: 999px;
-      padding: 3px 8px;
+      padding: 3px 10px;
       font-size: 11px;
-      font-weight: 600;
+      font-weight: 700;
     }
 
     .cpz-utr-desc {
       font-size: 13px;
       color: ${THEME.muted};
       line-height: 1.45;
-      margin-bottom: 14px;
+      margin-bottom: 16px;
     }
 
     .cpz-utr-input {
       width: 100%;
       border: 1px solid ${THEME.border};
-      border-radius: 10px;
-      padding: 11px 12px;
+      border-radius: 12px;
+      padding: 12px 13px;
       font-size: 14px;
       font-family: 'SF Mono', Monaco, monospace;
-      letter-spacing: 0.04em;
+      letter-spacing: 0.02em;
       color: ${THEME.foreground};
       background: ${THEME.background};
       outline: none;
@@ -759,10 +754,10 @@
     }
 
     .cpz-utr-hint {
-      font-size: 11px;
+      font-size: 12px;
       color: ${THEME.mutedLight};
-      margin-top: 6px;
-      min-height: 16px;
+      margin-top: 8px;
+      min-height: 18px;
     }
 
     .cpz-utr-hint.error {
@@ -771,13 +766,15 @@
 
     .cpz-utr-actions {
       display: flex;
-      gap: 8px;
+      gap: 10px;
       justify-content: flex-end;
-      margin-top: 16px;
+      margin-top: 18px;
     }
 
     .cpz-utr-actions .cpz-status-button {
-      min-width: 110px;
+      min-width: 124px;
+      border-radius: 12px;
+      padding: 11px 16px;
     }
 
     .cpz-utr-actions .cpz-status-button:disabled {
