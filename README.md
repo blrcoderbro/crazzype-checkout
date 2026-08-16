@@ -1,3 +1,5 @@
+
+
 # CrazzyPe Checkout.js - PHP Integration Guide
 
 ## Overview
@@ -8,12 +10,12 @@ CrazzyPe Checkout.js is a **premium incognito payment feature** that allows you 
 
 1. **Premium Plan**: You must have a plan that includes the "Incognito Checkout" feature
 2. **API Key**: Your CrazzyPe API key (available in your dashboard)
-3. **API Key Configuration**: Add your website domain to the API key's allowed origins in your CrazzyPe dashboard (e.g., `https://yoursite.com`)
+3. **API Key Configuration**: Add your website domain to the API key's allowed origins ("Allowed URL" field) in your CrazzyPe dashboard (e.g., `https://yoursite.com`)
 4. **PHP 7.4+**: Required for the examples below
 
 ## Important: Origin Validation
 
-checkout.js automatically validates your origin before proceeding. You must add your website domain to your API key's allowed origins in the CrazzyPe dashboard. Only domains listed in the allowed origins can use checkout.js with your API key. This ensures security and prevents unauthorized usage.
+checkout.js automatically validates your origin before proceeding. You must add your website domain to your API key's allowed origins in your CrazzyPe dashboard. Only domains listed in the allowed origins can use checkout.js with your API key. This ensures security and prevents unauthorized usage.
 
 ## Installation
 
