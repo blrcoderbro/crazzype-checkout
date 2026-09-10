@@ -1,5 +1,5 @@
 /**
- * CrazzyPe Checkout.js v3.1
+ * CrazzyPe Checkout.js v3.2
  */
 
 (function () {
@@ -857,7 +857,8 @@
     this.utrPromptTimeout = null;
     this.utrPromptShown = false;
     this.utrLayer = null;
-    this.timeLeft = 300; // 5 minutes
+    this.timeLeft = 30;
+    this.qrTimeoutSeconds = 30;
     this.timerCircumference = 2 * Math.PI * 18;
   }
 
@@ -890,6 +891,8 @@
       .then(function (data) {
         if (data && data.status === "success") {
           self.orderDetails = data;
+          self.orderDetails._qrStartedAt = Date.now();
+          self.qrTimeoutSeconds = Number(data.qr_timeout_seconds) || (String(data.merchantId || '').toLowerCase() === 'paytm' ? 10 : String(data.merchantId || '').toLowerCase() === 'bharatpe' ? 20 : 30);
           self._renderModal("payment", data);
           self._startTimer();
           if (self._isBharatPeOrder(data)) {
@@ -1537,7 +1540,7 @@
    */
   CrazzyPe.prototype._startTimer = function () {
     var self = this;
-    this.timeLeft = 300;
+    this.timeLeft = this.qrTimeoutSeconds;
 
     this.paymentTimer = setInterval(function () {
       self.timeLeft--;
@@ -1561,7 +1564,7 @@
       // Update progress circle
       var progress = document.getElementById("cpz-timer-progress");
       if (progress) {
-        var offset = self.timerCircumference * (1 - self.timeLeft / 300);
+        var offset = self.timerCircumference * (1 - self.timeLeft / self.qrTimeoutSeconds);
         progress.setAttribute("stroke-dashoffset", offset);
 
         // Change color based on time
@@ -1587,6 +1590,12 @@
     if (!orderId) return;
 
     this.pollingInterval = setInterval(function () {
+      if (Date.now() - self.orderDetails._qrStartedAt >= self.qrTimeoutSeconds * 1000) {
+        clearInterval(self.pollingInterval);
+        clearInterval(self.paymentTimer);
+        self._handleFailure({ error_description: "QR payment session expired" });
+        return;
+      }
       fetch(apiOrdersUrl("/api/orders/check-order-status"), {
         method: "POST",
         headers: apiAuthHeaders(self.options.key),
@@ -1693,8 +1702,13 @@
         }
 
         if (data.txn_status === "TXN_ALREADY_PROCESSED") {
-          self._openUtrModal({
-            errorMessage: data.message || "Transaction already processed.",
+          self._closeUtrModal();
+          clearInterval(self.pollingInterval);
+          clearInterval(self.paymentTimer);
+          self._handleFailure({
+            error_description:
+              data.message ||
+              "This UTR is already linked to another transaction. Transaction has been stopped.",
           });
           return;
         }
