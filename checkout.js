@@ -892,7 +892,8 @@
         if (data && data.status === "success") {
           self.orderDetails = data;
           self.orderDetails._qrStartedAt = Date.now();
-          self.qrTimeoutSeconds = Number(data.qr_timeout_seconds) || (String(data.merchantId || '').toLowerCase() === 'paytm' ? 10 : String(data.merchantId || '').toLowerCase() === 'bharatpe' ? 20 : 30);
+          // Fallback only — server always sends qr_timeout_seconds (Knit parity: Paytm/PhonePe = 300s).
+          self.qrTimeoutSeconds = Number(data.qr_timeout_seconds) || (String(data.merchantId || '').toLowerCase() === 'bharatpe' ? 20 : String(data.merchantId || '').toLowerCase() === 'quintuspay' ? 30 : 300);
           self._renderModal("payment", data);
           self._startTimer();
           if (self._isBharatPeOrder(data)) {
