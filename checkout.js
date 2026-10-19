@@ -39,24 +39,24 @@
 
   // Theme Configuration
   var THEME = {
-    primary: "#22c55e",
-    primaryDark: "#16a34a",
-    accent: "#3b82f6",
+    primary: "#3395ff",
+    primaryDark: "#1d6ee8",
+    accent: "#3395ff",
     background: "#ffffff",
-    foreground: "#0f172a",
-    muted: "#64748b",
-    mutedLight: "#94a3b8",
-    border: "#e2e8f0",
-    borderLight: "#f1f5f9",
+    foreground: "#0a2540",
+    muted: "#6b7c93",
+    mutedLight: "#8ca0b3",
+    border: "#dce3ea",
+    borderLight: "#e6ebf1",
     success: "#22c55e",
     error: "#ef4444",
     warning: "#f59e0b",
-    gradient: "linear-gradient(135deg, #22c55e 0%, #14b8a6 50%, #3b82f6 100%)",
+    gradient: "linear-gradient(135deg, #3395ff 0%, #1d6ee8 100%)",
   };
 
   // Embedded Styles
   var STYLES = `
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Manrope:wght@400;500;600;700&display=swap');
 
     .cpz-overlay {
       position: fixed;
@@ -69,7 +69,7 @@
       justify-content: center;
       z-index: 999999;
       padding: 16px;
-      font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      font-family: 'Manrope', sans-serif;
       animation: cpz-fade-in 0.3s ease-out;
     }
 
@@ -117,29 +117,18 @@
 
     .cpz-modal {
       width: 100%;
-      max-width: 400px;
+      max-width: 900px;
+      min-height: 560px;
       max-height: 90vh;
       background: ${THEME.background};
-      border-radius: 20px;
+      border-radius: 8px;
       box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25), 0 0 0 1px rgba(255, 255, 255, 0.1);
       overflow: hidden;
       position: relative;
       animation: cpz-scale-in 0.3s ease-out;
     }
 
-    .cpz-modal::before {
-      content: '';
-      position: absolute;
-      inset: 0;
-      padding: 2px;
-      border-radius: 20px;
-      background: ${THEME.gradient};
-      -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
-      -webkit-mask-composite: xor;
-      mask-composite: exclude;
-      pointer-events: none;
-    }
+    .cpz-modal::before { display: none; }
 
     @media (max-width: 480px) {
       .cpz-overlay {
@@ -149,6 +138,7 @@
       .cpz-modal {
         max-width: 100%;
         max-height: 95vh;
+        min-height: 0;
         border-radius: 20px 20px 0 0;
       }
       .cpz-modal::before {
@@ -182,7 +172,7 @@
     }
 
     .cpz-content {
-      padding: 24px;
+      padding: 0;
       overflow-y: auto;
       max-height: calc(90vh - 48px);
     }
@@ -190,8 +180,68 @@
     @media (max-width: 480px) {
       .cpz-content {
         max-height: calc(95vh - 48px);
-        padding: 20px;
+        padding: 0;
       }
+    }
+
+    .cpz-rzp-header {
+      min-height: 112px; padding: 24px 44px 22px 28px; color: #fff;
+      background: ${THEME.gradient}; display: flex; align-items: center;
+      justify-content: space-between; gap: 20px;
+    }
+    .cpz-rzp-brand { display:flex; align-items:center; gap:12px; min-width:0; }
+    .cpz-rzp-brand .cpz-logo, .cpz-rzp-brand .cpz-logo-placeholder {
+      width:44px; height:44px; border-radius:5px; background:#fff; color:${THEME.primary};
+    }
+    .cpz-rzp-name { font-size:17px; font-weight:700; }
+    .cpz-rzp-desc { margin-top:3px; font-size:12px; opacity:.78; }
+    .cpz-rzp-total { text-align:right; flex-shrink:0; }
+    .cpz-rzp-total span { display:block; font-size:11px; opacity:.75; }
+    .cpz-rzp-total strong { display:block; margin-top:2px; font-size:22px; }
+    .cpz-rzp-columns { display:grid; grid-template-columns: 310px minmax(0,1fr); min-height:390px; }
+    .cpz-rzp-methods { background:#f7f9fc; border-right:1px solid ${THEME.borderLight}; padding:26px 20px; }
+    .cpz-rzp-heading { font-size:13px; color:${THEME.muted}; font-weight:700; margin:0 8px 14px; }
+    .cpz-rzp-method {
+      width:100%; border:1px solid ${THEME.border}; border-left:3px solid ${THEME.primary};
+      border-radius:5px; background:#fff; padding:16px; text-align:left; cursor:pointer;
+      display:flex; align-items:center; gap:12px; color:${THEME.foreground};
+    }
+    .cpz-rzp-method:hover { border-color:${THEME.primary}; }
+    .cpz-rzp-method-icon { color:${THEME.primary}; width:24px; height:24px; }
+    .cpz-rzp-method-copy { flex:1; }
+    .cpz-rzp-method-title { display:block; font-size:14px; font-weight:700; }
+    .cpz-rzp-method-sub { display:block; margin-top:4px; font-size:11px; color:${THEME.muted}; }
+    .cpz-rzp-workspace { padding:25px 34px 18px; }
+    .cpz-rzp-workspace h2 { font-size:18px; color:${THEME.foreground}; margin-bottom:5px; }
+    .cpz-rzp-workspace > p { font-size:12px; color:${THEME.muted}; margin-bottom:16px; }
+    .cpz-rzp-scan { border:1px solid ${THEME.borderLight}; border-radius:6px; padding:18px; }
+    .cpz-rzp-scan-row { display:grid; grid-template-columns:200px 1fr; align-items:center; gap:22px; }
+    .cpz-rzp-steps { color:${THEME.muted}; font-size:12px; line-height:1.6; }
+    .cpz-rzp-steps strong { color:${THEME.foreground}; display:block; font-size:14px; margin-bottom:8px; }
+    .cpz-rzp-step { display:flex; gap:8px; margin-top:8px; }
+    .cpz-rzp-step b { color:${THEME.primary}; }
+    .cpz-rzp-footer {
+      min-height:62px; border-top:1px solid ${THEME.borderLight}; display:flex; align-items:center;
+      justify-content:space-between; padding:10px 26px; background:#fff;
+    }
+    .cpz-rzp-footer-amount span { display:block; font-size:10px; color:${THEME.muted}; }
+    .cpz-rzp-footer-amount strong { color:${THEME.foreground}; font-size:16px; }
+    .cpz-rzp-continue {
+      min-width:160px; border:0; border-radius:4px; padding:12px 20px; background:${THEME.primary};
+      color:#fff; font:700 13px 'Manrope',sans-serif; cursor:pointer;
+    }
+    @media (max-width: 640px) {
+      .cpz-rzp-header { min-height:84px; padding:18px 48px 16px 18px; }
+      .cpz-rzp-columns { display:block; min-height:0; }
+      .cpz-rzp-methods { padding:14px 16px; border-right:0; border-bottom:1px solid ${THEME.borderLight}; }
+      .cpz-rzp-heading { display:none; }
+      .cpz-rzp-method { padding:12px 14px; }
+      .cpz-rzp-workspace { padding:18px 16px 12px; }
+      .cpz-rzp-scan { padding:13px; }
+      .cpz-rzp-scan-row { grid-template-columns:1fr; gap:10px; }
+      .cpz-rzp-steps { display:none; }
+      .cpz-rzp-footer { padding:10px 16px; }
+      .cpz-rzp-continue { min-width:130px; }
     }
 
     /* Header Section */
@@ -573,6 +623,50 @@
       text-decoration: none;
     }
 
+    /* Razorpay Standard inspired payment frame */
+    .cpz-payment-shell { display:grid; grid-template-columns:280px minmax(0,1fr); min-height:560px; background:#fff; }
+    .cpz-payment-sidebar { background:linear-gradient(160deg,#3395ff 0%,#1d6ee8 100%); color:#fff; padding:34px 26px; display:flex; flex-direction:column; }
+    .cpz-payment-sidebar .cpz-header { border:0; margin:0; padding:0 0 28px; color:#fff; }
+    .cpz-payment-sidebar .cpz-merchant-name,.cpz-payment-sidebar .cpz-merchant-desc { color:#fff; }
+    .cpz-payment-sidebar .cpz-logo-placeholder { background:rgba(255,255,255,.18); border:1px solid rgba(255,255,255,.35); }
+    .cpz-sidebar-label { font-size:11px; opacity:.72; margin-top:auto; }
+    .cpz-sidebar-amount { font-size:28px; font-weight:700; margin-top:4px; }
+    .cpz-payment-main { display:flex; flex-direction:column; min-width:0; }
+    .cpz-payment-title { padding:28px 30px 18px; font-size:18px; font-weight:700; color:#0a2540; border-bottom:1px solid #e6ebf1; }
+    .cpz-payment-body { display:grid; grid-template-columns:205px minmax(0,1fr); flex:1; }
+    .cpz-methods { padding:18px 12px; background:#f7f9fc; border-right:1px solid #e6ebf1; }
+    .cpz-method { width:100%; border:0; border-left:3px solid #3395ff; background:#fff; padding:15px 13px; text-align:left; cursor:pointer; box-shadow:0 1px 3px rgba(10,37,64,.08); }
+    .cpz-method-title { display:flex; align-items:center; gap:8px; color:#0a2540; font-size:13px; font-weight:700; }
+    .cpz-method-sub { color:#6b7c93; font-size:10px; margin:6px 0 8px; }
+    .cpz-method-apps { color:#3395ff; font-size:10px; font-weight:700; letter-spacing:.02em; }
+    .cpz-payment-workspace { padding:22px 28px; overflow:auto; }
+    .cpz-scan-heading { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; color:#0a2540; font-size:15px; font-weight:700; }
+    .cpz-scan-panel { border:1px solid #e6ebf1; padding:18px; display:grid; grid-template-columns:auto 1fr; gap:22px; align-items:center; }
+    .cpz-scan-copy h3 { font-size:14px; color:#0a2540; margin-bottom:10px; }
+    .cpz-scan-copy ol { padding-left:18px; color:#6b7c93; font-size:11px; line-height:1.8; }
+    .cpz-payment-workspace .cpz-qr-section { margin:0; }
+    .cpz-payment-workspace .cpz-qr-container { width:188px; height:188px; }
+    .cpz-payment-workspace .cpz-qr-image { width:164px; height:164px; }
+    .cpz-payment-actions { margin-top:16px; display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .cpz-payment-actions .cpz-pay-button { margin:0; background:#3395ff; border-radius:4px; box-shadow:none; }
+    .cpz-payment-actions .cpz-upi-section { margin:0; }
+    .cpz-payment-workspace .cpz-footer { margin-top:16px; }
+    @media(max-width:720px) {
+      .cpz-payment-shell { display:block; min-height:0; }
+      .cpz-payment-sidebar { padding:22px 22px 16px; }
+      .cpz-payment-sidebar .cpz-header { padding-bottom:14px; }
+      .cpz-sidebar-label,.cpz-sidebar-amount { display:none; }
+      .cpz-payment-title { padding:16px 20px 12px; font-size:16px; }
+      .cpz-payment-body { display:block; }
+      .cpz-methods { border:0; border-bottom:1px solid #e6ebf1; padding:10px 16px; }
+      .cpz-method { padding:11px 12px; }
+      .cpz-method-sub,.cpz-method-apps { display:inline; margin-right:5px; }
+      .cpz-payment-workspace { padding:16px; }
+      .cpz-scan-panel { display:block; text-align:center; }
+      .cpz-scan-copy { margin-top:12px; text-align:left; }
+      .cpz-payment-actions { grid-template-columns:1fr; }
+    }
+
     /* Status States */
     .cpz-status {
       display: flex;
@@ -857,6 +951,7 @@
     this.utrPromptTimeout = null;
     this.utrPromptShown = false;
     this.utrLayer = null;
+    this._qrActivated = false;
     this.timeLeft = 30;
     this.qrTimeoutSeconds = 30;
     this.timerCircumference = 2 * Math.PI * 18;
@@ -891,16 +986,9 @@
       .then(function (data) {
         if (data && data.status === "success") {
           self.orderDetails = data;
-          self.orderDetails._qrStartedAt = Date.now();
           // Fallback only — server always sends qr_timeout_seconds (Knit parity: Paytm/PhonePe = 300s).
           self.qrTimeoutSeconds = Number(data.qr_timeout_seconds) || (String(data.merchantId || '').toLowerCase() === 'bharatpe' ? 20 : String(data.merchantId || '').toLowerCase() === 'quintuspay' ? 30 : 300);
-          self._renderModal("payment", data);
-          self._startTimer();
-          if (self._isBharatPeOrder(data)) {
-            self._scheduleBharatPeUtrReminder();
-          } else {
-            self._startPolling();
-          }
+          self._renderModal("methods", data);
         }
       })
       .catch(function (error) {
@@ -966,19 +1054,9 @@
       case "loading":
         content.appendChild(this._createLoadingState());
         break;
+      case "methods":
       case "payment":
-        content.appendChild(this._createHeader());
-        content.appendChild(this._createAmountSection(data));
-        content.appendChild(this._createQRSection(data));
-        content.appendChild(this._createTimerSection());
-        content.appendChild(this._createPayButton(data));
-        if (
-          String((data && data.merchantId) || "").toLowerCase() === "bharatpe"
-        ) {
-          content.appendChild(this._createUtrEntryButton(data));
-        }
-        content.appendChild(this._createUPISection(data));
-        content.appendChild(this._createFooter());
+        content.appendChild(this._createRazorpayCheckout(data));
         break;
       case "processing":
         content.appendChild(this._createProcessingState());
@@ -997,6 +1075,114 @@
 
     // Prevent body scroll
     document.body.style.overflow = "hidden";
+  };
+
+  CrazzyPe.prototype._createRazorpayCheckout = function (data) {
+    var self = this;
+    var root = document.createElement("div");
+    var header = document.createElement("div");
+    header.className = "cpz-rzp-header";
+    var brand = document.createElement("div");
+    brand.className = "cpz-rzp-brand";
+    brand.appendChild(this._createHeader());
+    var total = document.createElement("div");
+    total.className = "cpz-rzp-total";
+    total.innerHTML = "<span>Amount</span><strong>₹" + this._formatAmount(this.options.amount) + "</strong>";
+    header.appendChild(brand);
+    header.appendChild(total);
+
+    var columns = document.createElement("div");
+    columns.className = "cpz-rzp-columns";
+    var methods = document.createElement("aside");
+    methods.className = "cpz-rzp-methods";
+    methods.innerHTML = '<div class="cpz-rzp-heading">Payment Options</div>';
+    var method = document.createElement("button");
+    method.type = "button";
+    method.className = "cpz-rzp-method";
+    method.innerHTML =
+      '<span class="cpz-rzp-method-icon">' + ICONS.smartphone + '</span>' +
+      '<span class="cpz-rzp-method-copy"><span class="cpz-rzp-method-title">UPI QR</span>' +
+      '<span class="cpz-rzp-method-sub">Google Pay, PhonePe, Paytm & more</span></span><span>›</span>';
+
+    var workspace = document.createElement("main");
+    workspace.className = "cpz-rzp-workspace";
+    workspace.innerHTML = "<h2>UPI QR Payment</h2><p>Scan & Pay using any UPI app</p>";
+    var scan = document.createElement("div");
+    scan.className = "cpz-rzp-scan";
+    var scanRow = document.createElement("div");
+    scanRow.className = "cpz-rzp-scan-row";
+    var qrSlot = document.createElement("div");
+    qrSlot.className = "cpz-rzp-qr-slot";
+    qrSlot.innerHTML = '<div class="cpz-qr-loading"><div class="cpz-spinner"></div><span>Select UPI to load QR</span></div>';
+    var steps = document.createElement("div");
+    steps.className = "cpz-rzp-steps";
+    steps.innerHTML = "<strong>How to pay</strong>" +
+      '<div class="cpz-rzp-step"><b>1.</b><span>Open any UPI app on your phone</span></div>' +
+      '<div class="cpz-rzp-step"><b>2.</b><span>Scan the QR code and approve payment</span></div>' +
+      '<div class="cpz-rzp-step"><b>3.</b><span>Keep this window open for confirmation</span></div>';
+    scanRow.appendChild(qrSlot);
+    scanRow.appendChild(steps);
+    scan.appendChild(scanRow);
+    workspace.appendChild(scan);
+    methods.appendChild(method);
+    columns.appendChild(methods);
+    columns.appendChild(workspace);
+
+    var footer = document.createElement("div");
+    footer.className = "cpz-rzp-footer";
+    footer.innerHTML = '<div class="cpz-rzp-footer-amount"><span>Total</span><strong>₹' +
+      this._formatAmount(this.options.amount) + "</strong></div>";
+    var continueButton = document.createElement("button");
+    continueButton.type = "button";
+    continueButton.className = "cpz-rzp-continue";
+    continueButton.textContent = "Continue";
+    footer.appendChild(continueButton);
+
+    function activateUpi() {
+      method.classList.add("is-active");
+      continueButton.textContent = "Pay ₹" + self._formatAmount(self.options.amount);
+      self._ensureQr(data, qrSlot);
+    }
+    method.onclick = activateUpi;
+    continueButton.onclick = function () {
+      if (!self._qrActivated) {
+        activateUpi();
+      } else {
+        var primary = self._pickFirstNonPaytmUri([data.generic_upi_intent, data.upi_link, data.upi_intent]);
+        if (primary) window.location.href = primary;
+      }
+    };
+
+    root.appendChild(header);
+    root.appendChild(columns);
+    root.appendChild(footer);
+    return root;
+  };
+
+  CrazzyPe.prototype._ensureQr = function (data, slot) {
+    if (this._qrActivated) return;
+    this._qrActivated = true;
+    data._qrStartedAt = Date.now();
+    slot.innerHTML = "";
+    var qrData = Object.assign({}, data);
+    if (data.payment_url) {
+      try {
+        var token = new URL(data.payment_url, window.location.href).pathname.split("/").filter(Boolean).pop();
+        if (token) qrData.qr_code_url = apiOrdersUrl("/api/orders/checkout-qr/" + encodeURIComponent(token));
+      } catch (e) {
+        /* retain create-order QR fallback for legacy/custom payment URLs */
+      }
+    }
+    slot.appendChild(this._createQRSection(qrData));
+    slot.appendChild(this._createTimerSection());
+    slot.appendChild(this._createUPISection(data));
+    if (this._isBharatPeOrder(data)) {
+      slot.appendChild(this._createUtrEntryButton(data));
+      this._scheduleBharatPeUtrReminder();
+    } else {
+      this._startPolling();
+    }
+    this._startTimer();
   };
 
   /**
@@ -1128,11 +1314,18 @@
       '<div class="cpz-qr-corner cpz-qr-corner-br"></div>';
     container.appendChild(corners);
 
-    // Generate QR URL using api.qrserver.com
+    // SDK-created orders expose payment_url; derive its token and materialize
+    // the QR only when Scan & Pay is opened.
     var qrData = null;
+    if (data && data.payment_url) {
+      var token = String(data.payment_url).split("/pay/")[1];
+      if (token) {
+        qrData = apiOrdersUrl("/api/orders/checkout-qr/" + encodeURIComponent(token.split(/[?#]/)[0]));
+      }
+    }
 
     // Priority: qr_code_url > upi_link > upi_intent > construct from upiId
-    if (data && data.qr_code_url) {
+    if (!qrData && data && data.qr_code_url) {
       qrData = data.qr_code_url;
     } else if (data && data.upi_link) {
       qrData =
