@@ -3,7 +3,7 @@
  * ---------------------------------------------------------------------------
  * Versioning (cache-busting):
  *   Latest (short cache):  https://crazzype.com/checkout.js
- *   Pinned (immutable):    https://crazzype.com/v/4.0.0/checkout.js
+   *   Pinned (immutable):    https://crazzype.com/v/4.1.0/checkout.js
  * Bump CHECKOUT_VERSION below, then run: npm run tag:checkout
  * ---------------------------------------------------------------------------
  */
@@ -11,8 +11,8 @@
 (function () {
   "use strict";
 
-  /** @type {string} Semver â€” bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.0.0";
+  /** @type {string} Semver — bump this when shipping checkout UI/API changes */
+  var CHECKOUT_VERSION = "4.1.1";
 
   // API Configuration
   var API_BASE_URL =
@@ -46,7 +46,7 @@
     return headers;
   }
 
-  // Theme Configuration â€” Razorpay Standard Checkout layout; CrazzyPe brand blue
+  // Theme Configuration — Razorpay Standard Checkout layout; CrazzyPe brand blue
   var THEME = {
     primary: "#3395ff",
     primaryDark: "#1d6ee8",
@@ -106,10 +106,19 @@
       animation: cpz-fade-in 0.3s ease-out;
     }
 
-    .cpz-overlay * {
+    .cpz-overlay *,
+    .cpz-overlay *::before,
+    .cpz-overlay *::after {
       box-sizing: border-box;
+    }
+
+    .cpz-overlay h1,
+    .cpz-overlay h2,
+    .cpz-overlay h3,
+    .cpz-overlay p,
+    .cpz-overlay ul,
+    .cpz-overlay ol {
       margin: 0;
-      padding: 0;
     }
 
     @keyframes cpz-fade-in {
@@ -541,11 +550,11 @@
 
     .cpz-rzp-method:hover { background: #f8fafc; }
     .cpz-rzp-method.is-active {
-      background: #f2f5ff;
+      background: #f3f0ff;
     }
     .cpz-rzp-method.is-active .cpz-rzp-method-title {
-      color: #0b1a33;
-      font-weight: 700;
+      color: #292f32;
+      font-weight: 600;
     }
 
     .cpz-rzp-method-copy { flex: 1; min-width: 0; }
@@ -591,24 +600,41 @@
     }
 
     .cpz-rzp-timer {
+      display: none;
+      align-items: center;
+      gap: 6px;
       font-size: 12px;
       font-weight: 600;
-      color: ${THEME.muted};
-      display: inline-flex;
-      align-items: center;
-      gap: 4px;
+      color: ${THEME.foreground};
+      background: #f7f9fc;
+      border: 1px solid #e8ebef;
+      border-radius: 999px;
+      padding: 5px 10px 5px 8px;
+      letter-spacing: 0.01em;
+      font-variant-numeric: tabular-nums;
+    }
+
+    .cpz-rzp-timer.is-visible { display: inline-flex; }
+
+    .cpz-rzp-timer svg {
+      width: 12px;
+      height: 12px;
+      color: ${THEME.primary};
+      flex-shrink: 0;
     }
 
     .cpz-rzp-scan {
       border: none;
       border-radius: 0;
-      padding: 8px 0 0;
+      padding: 12px 0 0;
       background: transparent;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: 16px;
+      gap: 14px;
+      min-height: 280px;
+      justify-content: center;
     }
 
     .cpz-rzp-qr-slot {
@@ -631,17 +657,33 @@
       box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
+    .cpz-rzp-qr-slot .cpz-qr-section {
+      margin: 0;
+      width: 100%;
+      height: 100%;
+    }
+
     .cpz-rzp-qr-slot .cpz-qr-container {
+      width: 100%;
+      height: 100%;
       box-shadow: none;
       border: none;
       padding: 0;
       border-radius: 0;
+      background: transparent;
     }
 
     .cpz-rzp-qr-slot .cpz-qr-image,
     .cpz-rzp-qr-slot .cpz-qr-loading {
-      width: 164px;
-      height: 164px;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      background: transparent;
+    }
+
+    .cpz-rzp-qr-slot .cpz-spinner {
+      border-color: #e8ebef;
+      border-top-color: #94a3b8;
     }
 
     .cpz-rzp-qr-prompt {
@@ -896,50 +938,6 @@
       border: 1px solid ${THEME.borderLight};
     }
 
-    .cpz-qr-corners {
-      position: absolute;
-      inset: 8px;
-      pointer-events: none;
-    }
-
-    .cpz-qr-corner {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border: 3px solid ${THEME.primary};
-    }
-
-    .cpz-qr-corner-tl {
-      top: 0;
-      left: 0;
-      border-right: none;
-      border-bottom: none;
-      border-radius: 6px 0 0 0;
-    }
-
-    .cpz-qr-corner-tr {
-      top: 0;
-      right: 0;
-      border-left: none;
-      border-bottom: none;
-      border-radius: 0 6px 0 0;
-    }
-
-    .cpz-qr-corner-bl {
-      bottom: 0;
-      left: 0;
-      border-right: none;
-      border-top: none;
-      border-radius: 0 0 0 6px;
-    }
-
-    .cpz-qr-corner-br {
-      bottom: 0;
-      right: 0;
-      border-left: none;
-      border-top: none;
-      border-radius: 0 0 6px 0;
-    }
 
     .cpz-qr-image {
       width: 180px;
@@ -1289,7 +1287,7 @@
       animation-delay: 0.2s;
     }
 
-    /* BharatPe UTR modal (inside checkout overlay â€” not window.prompt) */
+    /* BharatPe UTR modal (inside checkout overlay — not window.prompt) */
     .cpz-utr-overlay {
       position: absolute;
       inset: 0;
@@ -1431,7 +1429,7 @@
   ];
 
   /**
-   * CrazzyPe Checkout Constructor â€” safe to call with or without `new`
+   * CrazzyPe Checkout Constructor — safe to call with or without `new`
    * (matches Razorpay / legacy merchant snippets).
    */
   function CrazzyPe(options) {
@@ -1684,7 +1682,7 @@
     var priceCard = document.createElement("div");
     priceCard.className = "cpz-rzp-price-card";
     priceCard.innerHTML =
-      "<span>Price Summary</span><strong>â‚¹" + amountStr + "</strong>";
+      "<span>Price Summary</span><strong>\u20B9" + amountStr + "</strong>";
 
     var userRow = document.createElement("div");
     userRow.className = "cpz-rzp-user-row";
@@ -1731,7 +1729,7 @@
     mobBrand.appendChild(mobInfo);
     var mobAmount = document.createElement("div");
     mobAmount.className = "cpz-rzp-mob-amount";
-    mobAmount.innerHTML = "<span>Total</span><strong>â‚¹" + amountStr + "</strong>";
+    mobAmount.innerHTML = "<span>Total</span><strong>\u20B9" + amountStr + "</strong>";
     mobHeader.appendChild(mobBrand);
     mobHeader.appendChild(mobAmount);
 
@@ -1773,7 +1771,11 @@
     panelHead.innerHTML = "<h2>Scan QR using any UPI app</h2>";
     var timerEl = document.createElement("div");
     timerEl.className = "cpz-rzp-timer";
-    timerEl.style.display = "none";
+    timerEl.id = "cpz-rzp-timer-label";
+    timerEl.innerHTML =
+      '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" aria-hidden="true">' +
+      '<circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>' +
+      '<span id="cpz-rzp-timer-text">05:00</span>';
     panelHead.appendChild(timerEl);
 
     var scan = document.createElement("div");
@@ -1808,7 +1810,7 @@
     payBtn.type = "button";
     payBtn.className = "cpz-rzp-pay-btn";
     payBtn.style.background = primary;
-    payBtn.textContent = "Pay â‚¹" + amountStr;
+    payBtn.textContent = "Pay \u20B9" + amountStr;
     payBtn.hidden = true;
 
     scan.appendChild(qrSlot);
@@ -1830,7 +1832,7 @@
     var mobFooterRow = document.createElement("div");
     mobFooterRow.className = "cpz-rzp-mob-footer-row";
     mobFooterRow.innerHTML =
-      '<div class="cpz-rzp-footer-amount"><span>Total</span><strong>â‚¹' +
+      '<div class="cpz-rzp-footer-amount"><span>Total</span><strong>\u20B9' +
       amountStr +
       "</strong></div>";
     var mobContinue = document.createElement("button");
@@ -1845,22 +1847,22 @@
     function generateQr() {
       if (self._qrActivated) return;
       generateBtn.disabled = true;
-      generateBtn.textContent = "Generatingâ€¦";
+      generateBtn.textContent = "Generating…";
       mobContinue.disabled = true;
       qrSlot.innerHTML = '<div class="cpz-qr-loading"><div class="cpz-spinner"></div></div>';
       qrSlot.classList.add("is-live");
       prompt.textContent = "Scan with any UPI app to pay";
-      timerEl.style.display = "";
-      timerEl.id = "cpz-rzp-timer-label";
+      timerEl.classList.add("is-visible");
+      // Slim Razorpay-style pill only — never inject the bulky circular timer card
       self._ensureQr(data, qrSlot, {
-        timerHost: timerEl,
+        skipTimerUi: true,
         extrasHost: scan,
         beforeNode: prompt,
       });
       generateBtn.hidden = true;
       payBtn.hidden = false;
       mobContinue.disabled = false;
-      mobContinue.textContent = "Pay â‚¹" + amountStr;
+      mobContinue.textContent = "Pay \u20B9" + amountStr;
     }
 
     function onPayOrGenerate() {
@@ -1909,14 +1911,17 @@
 
     var extrasHost = opts.extrasHost || slot;
     var beforeNode = opts.beforeNode || null;
-    var timerSection = this._createTimerSection();
-    if (opts.timerHost) {
-      opts.timerHost.innerHTML = "";
-      opts.timerHost.appendChild(timerSection);
-    } else if (beforeNode && beforeNode.parentNode === extrasHost) {
-      extrasHost.insertBefore(timerSection, beforeNode);
-    } else {
-      extrasHost.appendChild(timerSection);
+
+    if (!opts.skipTimerUi) {
+      var timerSection = this._createTimerSection();
+      if (opts.timerHost) {
+        opts.timerHost.innerHTML = "";
+        opts.timerHost.appendChild(timerSection);
+      } else if (beforeNode && beforeNode.parentNode === extrasHost) {
+        extrasHost.insertBefore(timerSection, beforeNode);
+      } else {
+        extrasHost.appendChild(timerSection);
+      }
     }
 
     if (this._isBharatPeOrder(data)) {
@@ -2023,7 +2028,7 @@
 
     var currency = document.createElement("span");
     currency.className = "cpz-currency";
-    currency.textContent = "â‚¹";
+    currency.textContent = "\u20B9";
     amount.appendChild(currency);
 
     var value = document.createElement("span");
@@ -2051,16 +2056,6 @@
 
     var container = document.createElement("div");
     container.className = "cpz-qr-container";
-
-    // Animated corners
-    var corners = document.createElement("div");
-    corners.className = "cpz-qr-corners";
-    corners.innerHTML =
-      '<div class="cpz-qr-corner cpz-qr-corner-tl"></div>' +
-      '<div class="cpz-qr-corner cpz-qr-corner-tr"></div>' +
-      '<div class="cpz-qr-corner cpz-qr-corner-bl"></div>' +
-      '<div class="cpz-qr-corner cpz-qr-corner-br"></div>';
-    container.appendChild(corners);
 
     // SDK-created orders expose payment_url; derive its token and materialize
     // the QR only when Scan & Pay is opened.
@@ -2117,9 +2112,7 @@
       }
       img.alt = "Payment QR Code";
       img.onerror = function () {
-        // Fallback to loading spinner on error
         container.innerHTML = "";
-        container.appendChild(corners.cloneNode(true));
         var loading = document.createElement("div");
         loading.className = "cpz-qr-loading";
         loading.innerHTML = '<div class="cpz-spinner"></div>';
@@ -2327,7 +2320,7 @@
     UPI_APPS.forEach(function (app) {
       var appDiv = document.createElement("div");
       appDiv.className = "cpz-upi-app";
-      appDiv.title = app.name + " â€“ Pay with " + app.name;
+      appDiv.title = app.name + " – Pay with " + app.name;
       var intent = getIntentForApp(app.name, data);
       if (intent) {
         appDiv.style.cursor = "pointer";
@@ -2458,7 +2451,7 @@
   };
 
   /**
-   * Create success state â€” 3D coin until redirect / dismiss
+   * Create success state — 3D coin until redirect / dismiss
    */
   CrazzyPe.prototype._createSuccessState = function (data) {
     var container = document.createElement("div");
@@ -2529,14 +2522,20 @@
         return;
       }
 
-      // Update timer text
+      var minutes = Math.floor(self.timeLeft / 60);
+      var seconds = self.timeLeft % 60;
+      var formatted =
+        (minutes < 10 ? "0" : "") +
+        minutes +
+        ":" +
+        (seconds < 10 ? "0" : "") +
+        seconds;
+
+      // Update timer text (legacy circle + Razorpay slim pill)
       var timerText = document.getElementById("cpz-timer-text");
-      if (timerText) {
-        var minutes = Math.floor(self.timeLeft / 60);
-        var seconds = self.timeLeft % 60;
-        timerText.textContent =
-          minutes + ":" + (seconds < 10 ? "0" : "") + seconds;
-      }
+      if (timerText) timerText.textContent = formatted;
+      var slimTimer = document.getElementById("cpz-rzp-timer-text");
+      if (slimTimer) slimTimer.textContent = formatted;
 
       // Update progress circle
       var progress = document.getElementById("cpz-timer-progress");
@@ -2703,9 +2702,9 @@
         if (data.txn_status === "AMOUNT_TAMPERED") {
           var amtMsg =
             data.amt != null && data.amtt != null
-              ? "Amount tampered. Order: â‚¹" +
+              ? "Amount tampered. Order: \u20B9" +
                 data.amt +
-                ", paid: â‚¹" +
+                ", paid: \u20B9" +
                 data.amtt +
                 "."
               : data.message ||
@@ -2980,9 +2979,9 @@
   };
 
   /**
-   * Handle success â€” show 3D coin, then fire legacy handlers.
+   * Handle success — show 3D coin, then fire legacy handlers.
    * Auto-redirect ONLY when merchant explicitly set callback_url
-   * (do not use create-order's window.location.href fallback â€” that broke handler-only embeds).
+   * (do not use create-order's window.location.href fallback — that broke handler-only embeds).
    */
   CrazzyPe.prototype._handleSuccess = function (data) {
     var self = this;
@@ -3120,7 +3119,7 @@
     });
   };
 
-  // Export to global scope â€” keep legacy aliases so old merchant snippets keep working
+  // Export to global scope — keep legacy aliases so old merchant snippets keep working
   CrazzyPe.VERSION = CHECKOUT_VERSION;
   CrazzyPe.version = CHECKOUT_VERSION;
 
