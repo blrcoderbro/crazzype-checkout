@@ -304,9 +304,121 @@
 
     .cpz-rzp-user-row-left {
       display: flex;
-      align-items: center;
+      align-items: flex-start;
       gap: 8px;
       min-width: 0;
+    }
+
+    .cpz-rzp-user-row-left > svg {
+      margin-top: 2px;
+      flex-shrink: 0;
+    }
+
+    .cpz-rzp-user-meta {
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+    }
+
+    .cpz-rzp-user-meta strong {
+      display: block;
+      font-size: 12.5px;
+      font-weight: 700;
+      line-height: 1.25;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    .cpz-rzp-user-meta span {
+      display: block;
+      font-size: 11px;
+      font-weight: 500;
+      opacity: 0.88;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* Razorpay-style 3D coin */
+    .cpz-coin-stage {
+      position: relative;
+      width: 96px;
+      height: 96px;
+      margin: 8px auto 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      perspective: 600px;
+    }
+
+    .cpz-halo-ring {
+      position: absolute;
+      width: 86px;
+      height: 86px;
+      border-radius: 50%;
+      border: 2px solid rgba(254, 240, 138, 0.45);
+      box-shadow: 0 0 16px rgba(250, 204, 21, 0.28), inset 0 0 10px rgba(250, 204, 21, 0.18);
+      animation: cpzHaloPulse 2.2s ease-in-out infinite;
+    }
+
+    @keyframes cpzHaloPulse {
+      0%, 100% { transform: scale(0.95); opacity: 0.55; }
+      50% { transform: scale(1.05); opacity: 0.95; }
+    }
+
+    .cpz-3d-coin {
+      width: 58px;
+      height: 58px;
+      position: relative;
+      transform-style: preserve-3d;
+      animation: cpzCoinSpin 1.5s cubic-bezier(0.45, 0.05, 0.55, 0.95) infinite;
+    }
+
+    @keyframes cpzCoinSpin {
+      0% { transform: rotateY(0deg); }
+      50% { transform: rotateY(180deg); }
+      100% { transform: rotateY(360deg); }
+    }
+
+    .cpz-coin-face {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      backface-visibility: hidden;
+      background: radial-gradient(circle at 35% 35%, #fff9c4 0%, #fbc02d 42%, #f57f17 82%, #d97706 100%);
+      border: 3.5px solid #fff59d;
+      box-shadow: 0 4px 14px rgba(217, 119, 6, 0.3), inset 0 1.5px 3px rgba(255, 255, 255, 0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cpz-coin-back { transform: rotateY(180deg); }
+
+    .cpz-coin-inner-rim {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: radial-gradient(circle at 38% 38%, #ffd54f 0%, #fbc02d 55%, #f57f17 100%);
+      box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.18);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cpz-coin-sheen {
+      position: absolute;
+      inset: 0;
+      border-radius: 50%;
+      background: linear-gradient(135deg, rgba(255,255,255,0.55) 0%, rgba(255,255,255,0) 50%);
+      pointer-events: none;
+    }
+
+    .cpz-status.cpz-coin-status {
+      min-height: 360px;
+      justify-content: center;
+      padding: 40px 28px;
     }
 
     .cpz-rzp-sidebar-bottom {
@@ -1439,9 +1551,7 @@
     var primary =
       (this.options.theme && (this.options.theme.color || this.options.theme.primary)) ||
       THEME.primary;
-    var guestLabel =
-      (this.options.prefill && (this.options.prefill.email || this.options.prefill.contact)) ||
-      "Using as Guest User";
+    var customer = this._getCustomerDetails(data);
 
     var root = document.createElement("div");
     root.className = "cpz-rzp-shell";
@@ -1480,12 +1590,7 @@
 
     var userRow = document.createElement("div");
     userRow.className = "cpz-rzp-user-row";
-    userRow.innerHTML =
-      '<div class="cpz-rzp-user-row-left">' +
-      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
-      '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>' +
-      "<span></span></div><span>›</span>";
-    userRow.querySelector("span").textContent = guestLabel;
+    userRow.appendChild(this._createCustomerRowContent(customer));
 
     var sideTop = document.createElement("div");
     sideTop.appendChild(brand);
@@ -2148,70 +2253,105 @@
     return footer;
   };
 
+  CrazzyPe.prototype._getCustomerDetails = function (data) {
+    var prefill = this.options.prefill || {};
+    var order = data || this.orderDetails || {};
+    var name =
+      prefill.name ||
+      order.customer_name ||
+      order.customerName ||
+      "";
+    var phone =
+      prefill.contact ||
+      order.customer_mobile ||
+      order.customerMobile ||
+      order.customer_phone ||
+      "";
+    var email =
+      prefill.email ||
+      order.customer_email ||
+      order.customerEmail ||
+      "";
+    return {
+      name: String(name || "").trim(),
+      phone: String(phone || "").trim(),
+      email: String(email || "").trim(),
+    };
+  };
+
+  CrazzyPe.prototype._createCustomerRowContent = function (customer) {
+    var wrap = document.createElement("div");
+    wrap.className = "cpz-rzp-user-row-left";
+    wrap.innerHTML =
+      '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">' +
+      '<path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>';
+
+    var meta = document.createElement("div");
+    meta.className = "cpz-rzp-user-meta";
+
+    var nameEl = document.createElement("strong");
+    nameEl.textContent = customer.name || "Guest User";
+    meta.appendChild(nameEl);
+
+    if (customer.phone) {
+      var phoneEl = document.createElement("span");
+      phoneEl.textContent = customer.phone;
+      meta.appendChild(phoneEl);
+    }
+    if (customer.email) {
+      var emailEl = document.createElement("span");
+      emailEl.textContent = customer.email;
+      meta.appendChild(emailEl);
+    }
+    if (!customer.phone && !customer.email) {
+      var guestEl = document.createElement("span");
+      guestEl.textContent = "Paying as guest";
+      meta.appendChild(guestEl);
+    }
+
+    wrap.appendChild(meta);
+    return wrap;
+  };
+
+  CrazzyPe.prototype._createCoinMarkup = function () {
+    return (
+      '<div class="cpz-coin-stage" aria-hidden="true">' +
+      '<div class="cpz-halo-ring"></div>' +
+      '<div class="cpz-3d-coin">' +
+      '<div class="cpz-coin-face cpz-coin-front"><div class="cpz-coin-inner-rim"></div><div class="cpz-coin-sheen"></div></div>' +
+      '<div class="cpz-coin-face cpz-coin-back"><div class="cpz-coin-inner-rim"></div><div class="cpz-coin-sheen"></div></div>' +
+      "</div></div>"
+    );
+  };
+
   /**
    * Create processing state
    */
   CrazzyPe.prototype._createProcessingState = function () {
     var container = document.createElement("div");
-    container.className = "cpz-status";
-
-    var icon = document.createElement("div");
-    icon.className = "cpz-status-icon processing";
-    icon.innerHTML = '<div class="cpz-spinner"></div>';
-    container.appendChild(icon);
-
-    var title = document.createElement("div");
-    title.className = "cpz-status-title";
-    title.textContent = "Processing Payment";
-    container.appendChild(title);
-
-    var message = document.createElement("div");
-    message.className = "cpz-status-message";
-    message.textContent = "Please do not close this window...";
-    container.appendChild(message);
-
-    var dots = document.createElement("div");
-    dots.className = "cpz-processing-dots";
-    dots.innerHTML =
-      '<div class="cpz-processing-dot"></div>' +
-      '<div class="cpz-processing-dot"></div>' +
-      '<div class="cpz-processing-dot"></div>';
-    container.appendChild(dots);
-
+    container.className = "cpz-status cpz-coin-status";
+    container.innerHTML =
+      this._createCoinMarkup() +
+      '<div class="cpz-status-title">Verifying Your Payment</div>' +
+      '<div class="cpz-status-message">Bank verification in progress. Please do not close this window.</div>';
     return container;
   };
 
   /**
-   * Create success state
+   * Create success state — 3D coin until redirect / dismiss
    */
   CrazzyPe.prototype._createSuccessState = function (data) {
-    var self = this;
     var container = document.createElement("div");
-    container.className = "cpz-status";
-
-    var icon = document.createElement("div");
-    icon.className = "cpz-status-icon success";
-    icon.innerHTML = ICONS.check;
-    container.appendChild(icon);
-
-    var title = document.createElement("div");
-    title.className = "cpz-status-title";
-    title.textContent = "Payment Successful!";
-    container.appendChild(title);
-
-    var message = document.createElement("div");
-    message.className = "cpz-status-message";
-    message.textContent = "Your payment has been processed successfully.";
-    container.appendChild(message);
-
-    var button = document.createElement("button");
-    button.className = "cpz-status-button";
-    button.textContent = "Done";
-    button.onclick = function () {
-      self.close();
-    };
-    container.appendChild(button);
-
+    container.className = "cpz-status cpz-coin-status";
+    var redirecting = !!(data && (data.redirect_url || this.options.callback_url));
+    container.innerHTML =
+      this._createCoinMarkup() +
+      '<div class="cpz-status-title">Payment Successful!</div>' +
+      '<div class="cpz-status-message">' +
+      (redirecting
+        ? "Redirecting you back to the merchant..."
+        : "Your payment has been processed successfully.") +
+      "</div>";
     return container;
   };
 
@@ -2330,8 +2470,12 @@
 
             setTimeout(function () {
               var hash = "";
-              if (data.data && data.data.redirect_url) {
-                var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
+              var redirectUrl =
+                (data.data && data.data.redirect_url) ||
+                self.options.callback_url ||
+                "";
+              if (redirectUrl) {
+                var hashMatch = redirectUrl.match(/hash=([^&]+)/);
                 if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
               }
 
@@ -2340,8 +2484,9 @@
                 payment_id: data.data && data.data.upi_txn_id,
                 signature: hash,
                 hash: hash,
+                redirect_url: redirectUrl,
               });
-            }, 1500);
+            }, 1200);
           } else if (
             data.txn_status === "TXN_FAILED" ||
             data.txn_status === "TXN_ALREADY_PROCESSED" ||
@@ -2404,8 +2549,12 @@
           self._renderModal("processing");
           setTimeout(function () {
             var hash = "";
-            if (data.data && data.data.redirect_url) {
-              var hashMatch = data.data.redirect_url.match(/hash=([^&]+)/);
+            var redirectUrl =
+              (data.data && data.data.redirect_url) ||
+              self.options.callback_url ||
+              "";
+            if (redirectUrl) {
+              var hashMatch = redirectUrl.match(/hash=([^&]+)/);
               if (hashMatch) hash = decodeURIComponent(hashMatch[1]);
             }
             self._handleSuccess({
@@ -2413,6 +2562,7 @@
               payment_id: data.data && data.data.upi_txn_id,
               signature: hash,
               hash: hash,
+              redirect_url: redirectUrl,
             });
           }, 1200);
           return;
@@ -2710,12 +2860,14 @@
   };
 
   /**
-   * Handle success
+   * Handle success — show 3D coin until redirect / handler fires
    */
   CrazzyPe.prototype._handleSuccess = function (data) {
     var self = this;
+    data = data || {};
+    var redirectUrl = data.redirect_url || this.options.callback_url || "";
 
-    this._renderModal("success", data);
+    this._renderModal("success", Object.assign({}, data, { redirect_url: redirectUrl }));
 
     var response = {
       crazzype_payment_id: data.payment_id || data.order_id,
@@ -2724,12 +2876,16 @@
       order_id: data.order_id || this.options.order_id,
       payment_id: data.payment_id,
       signature: data.signature || data.hash,
+      redirect_url: redirectUrl,
     };
 
     setTimeout(function () {
       if (self.options.handler) self.options.handler(response);
       if (self.options.onSuccess) self.options.onSuccess(response);
-    }, 1000);
+      if (redirectUrl) {
+        window.location.href = redirectUrl;
+      }
+    }, 2500);
   };
 
   /**
