@@ -1,9 +1,18 @@
 /**
- * CrazzyPe Checkout.js v3.2
+ * CrazzyPe Checkout.js
+ * ---------------------------------------------------------------------------
+ * Versioning (cache-busting):
+ *   Latest (short cache):  https://crazzype.com/checkout.js
+ *   Pinned (immutable):    https://crazzype.com/v/4.0.0/checkout.js
+ * Bump CHECKOUT_VERSION below, then run: npm run tag:checkout
+ * ---------------------------------------------------------------------------
  */
 
 (function () {
   "use strict";
+
+  /** @type {string} Semver â€” bump this when shipping checkout UI/API changes */
+  var CHECKOUT_VERSION = "4.0.0";
 
   // API Configuration
   var API_BASE_URL =
@@ -37,7 +46,7 @@
     return headers;
   }
 
-  // Theme Configuration — Razorpay Standard Checkout layout; CrazzyPe brand blue
+  // Theme Configuration â€” Razorpay Standard Checkout layout; CrazzyPe brand blue
   var THEME = {
     primary: "#3395ff",
     primaryDark: "#1d6ee8",
@@ -531,7 +540,13 @@
     }
 
     .cpz-rzp-method:hover { background: #f8fafc; }
-    .cpz-rzp-method.is-active { background: ${THEME.surfaceActive}; }
+    .cpz-rzp-method.is-active {
+      background: #f2f5ff;
+    }
+    .cpz-rzp-method.is-active .cpz-rzp-method-title {
+      color: #0b1a33;
+      font-weight: 700;
+    }
 
     .cpz-rzp-method-copy { flex: 1; min-width: 0; }
     .cpz-rzp-method-title { display: block; font-size: 13.5px; font-weight: 600; }
@@ -585,28 +600,35 @@
     }
 
     .cpz-rzp-scan {
-      border: 1px solid #e8ebef;
-      border-radius: 12px;
-      padding: 22px 20px 20px;
-      background: #fafbfc;
+      border: none;
+      border-radius: 0;
+      padding: 8px 0 0;
+      background: transparent;
       display: flex;
       flex-direction: column;
       align-items: center;
       text-align: center;
-      gap: 14px;
+      gap: 16px;
     }
 
     .cpz-rzp-qr-slot {
-      width: 176px;
-      height: 176px;
-      border: 1px solid #e8ebef;
+      width: 184px;
+      height: 184px;
+      border: none;
       border-radius: 8px;
-      background: #fff;
-      padding: 10px;
+      background: transparent;
+      padding: 0;
       display: flex;
       align-items: center;
       justify-content: center;
       overflow: hidden;
+    }
+
+    .cpz-rzp-qr-slot.is-live {
+      background: #fff;
+      border: 1px solid #e8ebef;
+      padding: 10px;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
     }
 
     .cpz-rzp-qr-slot .cpz-qr-container {
@@ -618,34 +640,60 @@
 
     .cpz-rzp-qr-slot .cpz-qr-image,
     .cpz-rzp-qr-slot .cpz-qr-loading {
-      width: 156px;
-      height: 156px;
+      width: 164px;
+      height: 164px;
     }
 
     .cpz-rzp-qr-prompt {
       font-size: 13px;
       font-weight: 500;
       color: #475569;
+      max-width: 260px;
+      line-height: 1.45;
     }
 
     .cpz-rzp-app-row {
       display: flex;
       justify-content: center;
-      gap: 8px;
+      gap: 10px;
       flex-wrap: wrap;
     }
 
     .cpz-rzp-app-row img {
-      width: 30px;
-      height: 30px;
-      border-radius: 7px;
+      width: 28px;
+      height: 28px;
+      border-radius: 6px;
       object-fit: cover;
       border: 1px solid ${THEME.border};
       background: #fff;
     }
 
+    .cpz-rzp-generate-pill {
+      appearance: none;
+      border: 1px solid ${THEME.primary};
+      background: #fff;
+      color: ${THEME.primary};
+      border-radius: 999px;
+      padding: 10px 28px;
+      font: 600 13px Inter, sans-serif;
+      cursor: pointer;
+      letter-spacing: 0.01em;
+      transition: background 0.15s, color 0.15s, box-shadow 0.15s;
+      box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+    }
+
+    .cpz-rzp-generate-pill:hover {
+      background: ${THEME.primary};
+      color: #fff;
+    }
+
+    .cpz-rzp-generate-pill:disabled {
+      opacity: 0.65;
+      cursor: wait;
+    }
+
     .cpz-rzp-pay-btn {
-      margin-top: 14px;
+      margin-top: 4px;
       width: 100%;
       max-width: 280px;
       border: 0;
@@ -658,6 +706,11 @@
     }
 
     .cpz-rzp-pay-btn:hover { background: ${THEME.primaryDark}; }
+
+    .cpz-rzp-pay-btn[hidden],
+    .cpz-rzp-generate-pill[hidden] {
+      display: none !important;
+    }
 
     .cpz-rzp-mob-header {
       display: none;
@@ -1236,7 +1289,7 @@
       animation-delay: 0.2s;
     }
 
-    /* BharatPe UTR modal (inside checkout overlay — not window.prompt) */
+    /* BharatPe UTR modal (inside checkout overlay â€” not window.prompt) */
     .cpz-utr-overlay {
       position: absolute;
       inset: 0;
@@ -1378,38 +1431,61 @@
   ];
 
   /**
-   * CrazzyPe Checkout Constructor
+   * CrazzyPe Checkout Constructor â€” safe to call with or without `new`
+   * (matches Razorpay / legacy merchant snippets).
    */
   function CrazzyPe(options) {
+    if (!(this instanceof CrazzyPe)) {
+      return new CrazzyPe(options);
+    }
+
     if (!options) {
       throw new Error("CrazzyPe: Options are required");
     }
 
-    if (!options.key) {
+    var key = options.key || options.api_key || options.apiKey || "";
+    if (!key) {
       throw new Error("CrazzyPe: API key is required");
     }
 
-    if (!options.amount) {
+    if (options.amount === undefined || options.amount === null || options.amount === "") {
       throw new Error("CrazzyPe: Amount is required");
     }
 
+    var themeOpt = options.theme || {};
+    var theme = Object.assign({}, THEME, themeOpt);
+    if (themeOpt.color && !themeOpt.primary) {
+      theme.primary = themeOpt.color;
+      theme.accent = themeOpt.color;
+      theme.gradient = themeOpt.color;
+    }
+
+    var modal = options.modal || {};
     this.options = {
-      key: options.key,
+      key: key,
       amount: options.amount,
       currency: options.currency || "INR",
-      name: options.name || "CrazzyPe",
-      description: options.description || "Payment",
-      image: options.image || "",
-      order_id: options.order_id,
-      callback_url: options.callback_url || "",
-      prefill: options.prefill || {},
-      notes: options.notes || {},
-      theme: Object.assign({}, THEME, options.theme || {}),
-      modal: options.modal || {},
-      handler: options.handler || null,
+      name: options.name || options.merchant_name || "CrazzyPe",
+      description: options.description || options.p_info || "Payment",
+      image: options.image || options.logo || "",
+      order_id: options.order_id || options.orderId || options.txn_id || "",
+      callback_url: options.callback_url || options.callbackUrl || options.redirect_url || "",
+      prefill: Object.assign(
+        {},
+        {
+          name: options.customer_name || "",
+          email: options.customer_email || "",
+          contact: options.customer_mobile || options.customer_phone || "",
+        },
+        options.prefill || {},
+      ),
+      notes: options.notes || options.udf || {},
+      theme: theme,
+      modal: modal,
+      handler: options.handler || options.onsuccess || null,
       onSuccess: options.onSuccess || null,
-      onFailure: options.onFailure || null,
-      onDismiss: options.onDismiss || null,
+      onFailure: options.onFailure || options.onfailed || null,
+      onDismiss: options.onDismiss || modal.ondismiss || null,
     };
 
     this.overlay = null;
@@ -1431,13 +1507,25 @@
   CrazzyPe.prototype.open = function () {
     var self = this;
 
-    // Inject styles if not already done
-    this._injectStyles();
+    // Reset per-open state so reusing an instance (legacy pattern) still works
+    this._qrActivated = false;
+    this.utrPromptShown = false;
+    if (this.paymentTimer) {
+      clearInterval(this.paymentTimer);
+      this.paymentTimer = null;
+    }
+    if (this.pollingInterval) {
+      clearInterval(this.pollingInterval);
+      this.pollingInterval = null;
+    }
+    if (this.utrPromptTimeout) {
+      clearTimeout(this.utrPromptTimeout);
+      this.utrPromptTimeout = null;
+    }
 
-    // Show loading state
+    this._injectStyles();
     this._renderModal("loading");
 
-    // Validate and create order
     this._validateOrigin()
       .then(function () {
         return self._checkIncognitoFeature();
@@ -1454,24 +1542,34 @@
       .then(function (data) {
         if (data && data.status === "success") {
           self.orderDetails = data;
-          // Fallback only — server always sends qr_timeout_seconds (Knit parity: Paytm/PhonePe = 300s).
-          self.qrTimeoutSeconds = Number(data.qr_timeout_seconds) || (String(data.merchantId || '').toLowerCase() === 'bharatpe' ? 20 : String(data.merchantId || '').toLowerCase() === 'quintuspay' ? 30 : 300);
+          self.qrTimeoutSeconds =
+            Number(data.qr_timeout_seconds) ||
+            (String(data.merchantId || "").toLowerCase() === "bharatpe"
+              ? 20
+              : String(data.merchantId || "").toLowerCase() === "quintuspay"
+                ? 30
+                : 300);
           self._renderModal("methods", data);
+        } else if (data) {
+          self._showError(data.message || "Failed to initialize payment");
         }
       })
       .catch(function (error) {
-        if (error.message !== "Feature not available") {
-          self._showError(error.message || "Failed to initialize payment");
+        if (error && error.message !== "Feature not available") {
+          self._showError((error && error.message) || "Failed to initialize payment");
         }
       });
   };
 
   /**
-   * Inject CSS styles into the page
+   * Inject CSS styles into the page (replace so UI updates survive hot reload)
    */
   CrazzyPe.prototype._injectStyles = function () {
-    if (document.getElementById("cpz-styles")) return;
-
+    var existing = document.getElementById("cpz-styles");
+    if (existing) {
+      existing.textContent = STYLES;
+      return;
+    }
     var style = document.createElement("style");
     style.id = "cpz-styles";
     style.textContent = STYLES;
@@ -1586,7 +1684,7 @@
     var priceCard = document.createElement("div");
     priceCard.className = "cpz-rzp-price-card";
     priceCard.innerHTML =
-      "<span>Price Summary</span><strong>₹" + amountStr + "</strong>";
+      "<span>Price Summary</span><strong>â‚¹" + amountStr + "</strong>";
 
     var userRow = document.createElement("div");
     userRow.className = "cpz-rzp-user-row";
@@ -1633,7 +1731,7 @@
     mobBrand.appendChild(mobInfo);
     var mobAmount = document.createElement("div");
     mobAmount.className = "cpz-rzp-mob-amount";
-    mobAmount.innerHTML = "<span>Total</span><strong>₹" + amountStr + "</strong>";
+    mobAmount.innerHTML = "<span>Total</span><strong>â‚¹" + amountStr + "</strong>";
     mobHeader.appendChild(mobBrand);
     mobHeader.appendChild(mobAmount);
 
@@ -1659,11 +1757,11 @@
 
     var method = document.createElement("button");
     method.type = "button";
-    method.className = "cpz-rzp-method";
+    method.className = "cpz-rzp-method is-active";
     method.innerHTML =
       '<span class="cpz-rzp-method-copy">' +
-      '<span class="cpz-rzp-method-title">UPI / QR</span>' +
-      '<span class="cpz-rzp-method-sub">Google Pay, PhonePe, Paytm & more</span></span>' +
+      '<span class="cpz-rzp-method-title">UPI</span>' +
+      '<span class="cpz-rzp-method-sub">Pay by any UPI app</span></span>' +
       '<span class="cpz-rzp-method-icons">' + methodIcons + "</span>";
     methods.appendChild(method);
 
@@ -1672,7 +1770,7 @@
 
     var panelHead = document.createElement("div");
     panelHead.className = "cpz-rzp-panel-head";
-    panelHead.innerHTML = "<h2>Scan QR code using any UPI app</h2>";
+    panelHead.innerHTML = "<h2>Scan QR using any UPI app</h2>";
     var timerEl = document.createElement("div");
     timerEl.className = "cpz-rzp-timer";
     timerEl.style.display = "none";
@@ -1683,10 +1781,12 @@
     var qrSlot = document.createElement("div");
     qrSlot.className = "cpz-rzp-qr-slot";
     qrSlot.innerHTML =
-      '<div class="cpz-qr-loading"><div class="cpz-spinner"></div></div>';
+      '<div class="cpz-rzp-qr-prompt" style="padding:24px 12px">Tap Generate to create a live QR</div>';
+
     var prompt = document.createElement("div");
     prompt.className = "cpz-rzp-qr-prompt";
-    prompt.textContent = "Select UPI / QR to generate your payment code";
+    prompt.textContent = "Pay using any UPI app. Your QR is generated securely on demand.";
+
     var appRow = document.createElement("div");
     appRow.className = "cpz-rzp-app-row";
     UPI_APPS.forEach(function (app) {
@@ -1696,15 +1796,25 @@
       img.title = app.name;
       appRow.appendChild(img);
     });
+
+    var generateBtn = document.createElement("button");
+    generateBtn.type = "button";
+    generateBtn.className = "cpz-rzp-generate-pill";
+    generateBtn.style.borderColor = primary;
+    generateBtn.style.color = primary;
+    generateBtn.textContent = "Generate";
+
     var payBtn = document.createElement("button");
     payBtn.type = "button";
     payBtn.className = "cpz-rzp-pay-btn";
     payBtn.style.background = primary;
-    payBtn.textContent = "Continue";
+    payBtn.textContent = "Pay â‚¹" + amountStr;
+    payBtn.hidden = true;
 
     scan.appendChild(qrSlot);
     scan.appendChild(prompt);
     scan.appendChild(appRow);
+    scan.appendChild(generateBtn);
     scan.appendChild(payBtn);
     panel.appendChild(panelHead);
     panel.appendChild(scan);
@@ -1720,7 +1830,7 @@
     var mobFooterRow = document.createElement("div");
     mobFooterRow.className = "cpz-rzp-mob-footer-row";
     mobFooterRow.innerHTML =
-      '<div class="cpz-rzp-footer-amount"><span>Total</span><strong>₹' +
+      '<div class="cpz-rzp-footer-amount"><span>Total</span><strong>â‚¹' +
       amountStr +
       "</strong></div>";
     var mobContinue = document.createElement("button");
@@ -1728,15 +1838,18 @@
     mobContinue.className = "cpz-rzp-pay-btn";
     mobContinue.style.cssText =
       "margin:0;max-width:none;min-width:140px;background:" + primary;
-    mobContinue.textContent = "Continue";
+    mobContinue.textContent = "Generate";
     mobFooterRow.appendChild(mobContinue);
     mobFooter.appendChild(mobFooterRow);
 
-    function activateUpi() {
-      method.classList.add("is-active");
+    function generateQr() {
+      if (self._qrActivated) return;
+      generateBtn.disabled = true;
+      generateBtn.textContent = "Generatingâ€¦";
+      mobContinue.disabled = true;
+      qrSlot.innerHTML = '<div class="cpz-qr-loading"><div class="cpz-spinner"></div></div>';
+      qrSlot.classList.add("is-live");
       prompt.textContent = "Scan with any UPI app to pay";
-      payBtn.textContent = "Pay ₹" + amountStr;
-      mobContinue.textContent = "Pay ₹" + amountStr;
       timerEl.style.display = "";
       timerEl.id = "cpz-rzp-timer-label";
       self._ensureQr(data, qrSlot, {
@@ -1744,24 +1857,31 @@
         extrasHost: scan,
         beforeNode: prompt,
       });
+      generateBtn.hidden = true;
+      payBtn.hidden = false;
+      mobContinue.disabled = false;
+      mobContinue.textContent = "Pay â‚¹" + amountStr;
     }
 
-    function onContinue() {
+    function onPayOrGenerate() {
       if (!self._qrActivated) {
-        activateUpi();
-      } else {
-        var uri = self._pickFirstNonPaytmUri([
-          data.generic_upi_intent,
-          data.upi_link,
-          data.upi_intent,
-        ]);
-        if (uri) window.location.href = uri;
+        generateQr();
+        return;
       }
+      var uri = self._pickFirstNonPaytmUri([
+        data.generic_upi_intent,
+        data.upi_link,
+        data.upi_intent,
+      ]);
+      if (uri) window.location.href = uri;
     }
 
-    method.onclick = activateUpi;
-    payBtn.onclick = onContinue;
-    mobContinue.onclick = onContinue;
+    method.onclick = function () {
+      method.classList.add("is-active");
+    };
+    generateBtn.onclick = generateQr;
+    payBtn.onclick = onPayOrGenerate;
+    mobContinue.onclick = onPayOrGenerate;
 
     root.appendChild(sidebar);
     root.appendChild(mobHeader);
@@ -1903,7 +2023,7 @@
 
     var currency = document.createElement("span");
     currency.className = "cpz-currency";
-    currency.textContent = "₹";
+    currency.textContent = "â‚¹";
     amount.appendChild(currency);
 
     var value = document.createElement("span");
@@ -2207,7 +2327,7 @@
     UPI_APPS.forEach(function (app) {
       var appDiv = document.createElement("div");
       appDiv.className = "cpz-upi-app";
-      appDiv.title = app.name + " – Pay with " + app.name;
+      appDiv.title = app.name + " â€“ Pay with " + app.name;
       var intent = getIntentForApp(app.name, data);
       if (intent) {
         appDiv.style.cursor = "pointer";
@@ -2338,7 +2458,7 @@
   };
 
   /**
-   * Create success state — 3D coin until redirect / dismiss
+   * Create success state â€” 3D coin until redirect / dismiss
    */
   CrazzyPe.prototype._createSuccessState = function (data) {
     var container = document.createElement("div");
@@ -2583,9 +2703,9 @@
         if (data.txn_status === "AMOUNT_TAMPERED") {
           var amtMsg =
             data.amt != null && data.amtt != null
-              ? "Amount tampered. Order: ₹" +
+              ? "Amount tampered. Order: â‚¹" +
                 data.amt +
-                ", paid: ₹" +
+                ", paid: â‚¹" +
                 data.amtt +
                 "."
               : data.message ||
@@ -2839,9 +2959,9 @@
           customer_email: self.options.prefill.email || "",
           customer_mobile: self.options.prefill.contact || "",
           redirect_url: self.options.callback_url || window.location.href,
-          udf1: self.options.notes.udf1 || "",
-          udf2: self.options.notes.udf2 || "",
-          udf3: self.options.notes.udf3 || "",
+          udf1: (self.options.notes && self.options.notes.udf1) || "",
+          udf2: (self.options.notes && self.options.notes.udf2) || "",
+          udf3: (self.options.notes && self.options.notes.udf3) || "",
         }),
       })
         .then(function (res) {
@@ -2860,14 +2980,22 @@
   };
 
   /**
-   * Handle success — show 3D coin until redirect / handler fires
+   * Handle success â€” show 3D coin, then fire legacy handlers.
+   * Auto-redirect ONLY when merchant explicitly set callback_url
+   * (do not use create-order's window.location.href fallback â€” that broke handler-only embeds).
    */
   CrazzyPe.prototype._handleSuccess = function (data) {
     var self = this;
     data = data || {};
-    var redirectUrl = data.redirect_url || this.options.callback_url || "";
+    var explicitCallback = this.options.callback_url || "";
+    var redirectUrl = explicitCallback
+      ? data.redirect_url || explicitCallback
+      : "";
 
-    this._renderModal("success", Object.assign({}, data, { redirect_url: redirectUrl }));
+    this._renderModal(
+      "success",
+      Object.assign({}, data, { redirect_url: redirectUrl || explicitCallback }),
+    );
 
     var response = {
       crazzype_payment_id: data.payment_id || data.order_id,
@@ -2876,14 +3004,30 @@
       order_id: data.order_id || this.options.order_id,
       payment_id: data.payment_id,
       signature: data.signature || data.hash,
-      redirect_url: redirectUrl,
+      redirect_url: redirectUrl || explicitCallback || "",
     };
 
     setTimeout(function () {
-      if (self.options.handler) self.options.handler(response);
-      if (self.options.onSuccess) self.options.onSuccess(response);
-      if (redirectUrl) {
-        window.location.href = redirectUrl;
+      try {
+        if (typeof self.options.handler === "function") {
+          self.options.handler(response);
+        }
+      } catch (err) {
+        console.error("CrazzyPe: handler error", err);
+      }
+      try {
+        if (typeof self.options.onSuccess === "function") {
+          self.options.onSuccess(response);
+        }
+      } catch (err2) {
+        console.error("CrazzyPe: onSuccess error", err2);
+      }
+
+      // Legacy PHP / callback_url flows only
+      if (explicitCallback) {
+        window.location.href = redirectUrl || explicitCallback;
+      } else {
+        self.close();
       }
     }, 2500);
   };
@@ -2976,8 +3120,15 @@
     });
   };
 
-  // Export to global scope
+  // Export to global scope â€” keep legacy aliases so old merchant snippets keep working
+  CrazzyPe.VERSION = CHECKOUT_VERSION;
+  CrazzyPe.version = CHECKOUT_VERSION;
+
   if (typeof window !== "undefined") {
     window.CrazzyPe = CrazzyPe;
+    window.Crazzype = window.Crazzype || CrazzyPe;
+    window.CutePe = window.CutePe || CrazzyPe;
+    window.crazzype = window.crazzype || CrazzyPe;
+    window.CRAZZYPE_CHECKOUT_VERSION = CHECKOUT_VERSION;
   }
 })();
