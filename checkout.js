@@ -12,7 +12,7 @@
   "use strict";
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.9.4";
+  var CHECKOUT_VERSION = "4.9.5";
 
   // API Configuration
   var API_BASE_URL =
@@ -88,8 +88,9 @@
   var WARNING_SVG = `<svg viewBox="0 0 216 72" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m104 15-24 40a4 4 0 0 0 3 6h50a4 4 0 0 0 3-6l-24-40a5 5 0 0 0-8 0ZM76 64h64"/><path d="M108 29v14m0 7v2" stroke="var(--cp-accent)"/></svg>`;
   // Original rupee line art; five shallow layers give a thin edge without a player or mesh.
   var COIN_FACE_SVG = `<svg viewBox="0 0 50 50" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="25" cy="25" r="19"/><path d="M18 16h15m-15 5h15m-12-5c9 0 9 11-2 11l12 10M25 3v2m0 40v2"/></svg>`;
+  var PULSE_SVG = `<svg viewBox="0 0 216 72" fill="none" stroke="var(--cp-accent)" stroke-width="1.5" aria-hidden="true"><circle class="cpz-pulse-ring" cx="108" cy="36" r="20"/><circle class="cpz-pulse-ring" cx="108" cy="36" r="20"/><circle class="cpz-pulse-ring" cx="108" cy="36" r="20"/><g class="cpz-pulse-token"><circle cx="108" cy="36" r="20" fill="var(--cp-accent)" stroke="none"/><text x="108" y="44" text-anchor="middle" font-size="22" font-weight="600" fill="var(--cp-on-primary)" stroke="none">\u20B9</text></g></svg>`;
   var COIN_SVG = `<div class="cpz-coin-scene" aria-hidden="true"><svg class="cpz-coin-streaks" viewBox="0 0 216 72" fill="none" stroke="var(--cp-primary)" stroke-width="1.5" stroke-linecap="round"><path d="M52 23h27M43 36h32M57 49h22"/></svg><div class="cpz-original-coin"><span class="cpz-coin-edge cpz-coin-edge-back"></span><span class="cpz-coin-edge"></span><span class="cpz-coin-edge cpz-coin-edge-front"></span><span class="cpz-coin-face cpz-coin-front">${COIN_FACE_SVG}</span><span class="cpz-coin-face cpz-coin-back">${COIN_FACE_SVG}</span></div></div>`;
-  var SUCCESS_SVG = `<svg viewBox="0 0 216 72" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="cpz-original-halo" d="M141 36a33 33 0 1 1-66 0 33 33 0 0 1 66 0Z" opacity=".2"/><path class="cpz-original-circle" d="M134 36a26 26 0 1 1-52 0 26 26 0 0 1 52 0Z" fill="currentColor"/><path class="cpz-original-tick" d="m96 36 8 8 17-17" stroke="var(--cp-success)" pathLength="1"/></svg>`;
+  var SUCCESS_SVG = `<svg viewBox="0 0 216 72" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path class="cpz-original-halo" d="M141 36a33 33 0 1 1-66 0 33 33 0 0 1 66 0Z" opacity=".2"/><path class="cpz-original-spark" d="M108 1v5M108 71v-5M73 36h5M143 36h-5M133 11l-4 4M83 11l4 4M133 61l-4-4M83 61l4-4"/><path class="cpz-original-circle" d="M134 36a26 26 0 1 1-52 0 26 26 0 0 1 52 0Z" fill="currentColor"/><path class="cpz-original-tick" d="m96 36 8 8 17-17" stroke="var(--cp-success)" pathLength="1"/></svg>`;
 
   var SHIELD_SVG =
     '<svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">' +
@@ -2861,9 +2862,21 @@
     .cpz-hourglass-body { transform-origin: 108px 36px; animation: cpz-original-turn 2.4s var(--cp-ease) infinite; }
     @keyframes cpz-original-spin { 0%, 100% { transform: rotateY(0) scale(.94); } 50% { transform: rotateY(180deg) scale(1.06); } }
     @keyframes cpz-original-turn { to { transform: rotate(360deg); } }
-    .cpz-state-confirming .cpz-illustration { transition: transform 450ms var(--cp-ease), opacity 450ms var(--cp-ease); }
-    .is-coin-exit .cpz-illustration { transform: translateX(160px); opacity: 0; }
-    .cpz-success-pane { position: absolute; inset: 0; pointer-events: auto; background: var(--cp-success); color: #fff; padding: 24px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; animation: cpz-fade-in 250ms var(--cp-ease); }
+    .cpz-state-confirming .cpz-illustration { transition: transform 400ms var(--cp-ease), opacity 400ms var(--cp-ease); }
+    .is-coin-exit .cpz-illustration { transform: scale(.8); opacity: 0; }
+    .cpz-pulse-ring { transform-origin: 108px 36px; opacity: 0; animation: cpz-pulse-ring 1.8s cubic-bezier(0,0,.2,1) infinite; }
+    .cpz-pulse-ring:nth-child(2) { animation-delay: .6s; }
+    .cpz-pulse-ring:nth-child(3) { animation-delay: 1.2s; }
+    .cpz-pulse-token { transform-origin: 108px 36px; animation: cpz-pulse-token 1.8s ease-in-out infinite; }
+    @keyframes cpz-pulse-ring { 0% { transform: scale(1); opacity: .5; } 100% { transform: scale(1.8); opacity: 0; } }
+    @keyframes cpz-pulse-token { 0%, 100% { transform: scale(1); } 50% { transform: scale(1.06); } }
+    .cpz-success-pane { position: absolute; inset: 0; pointer-events: auto; background: var(--cp-success); color: #fff; padding: 24px; display: flex; flex-direction: column; align-items: center; overflow-y: auto; animation: cpz-success-wipe 180ms var(--cp-ease); }
+    @keyframes cpz-success-wipe { from { clip-path: circle(0 at 50% 30%); } to { clip-path: circle(150% at 50% 30%); } }
+    .cpz-success-pane .cpz-sheet-title, .cpz-success-pane .cpz-sheet-live { animation: cpz-rise 240ms 180ms var(--cp-ease) backwards; }
+    .cpz-success-pane .cpz-receipt { animation: cpz-rise 280ms 300ms var(--cp-ease) backwards; }
+    @keyframes cpz-rise { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
+    .cpz-original-spark { stroke-dasharray: 5; stroke-dashoffset: 5; opacity: 0; animation: cpz-spark 500ms 420ms ease-out forwards; }
+    @keyframes cpz-spark { 0% { stroke-dashoffset: 5; opacity: 1; } 100% { stroke-dashoffset: 0; opacity: 0; } }
     .cpz-success-pane.is-closing { opacity: 0; transition: opacity 220ms var(--cp-ease); }
     .cpz-success-pane .cpz-sheet-title { font-size: 20px; font-weight: 700; color: #fff; }
     .cpz-success-pane .cpz-sheet-live { font-size: 13px; font-weight: 500; color: rgba(255,255,255,.8); }
@@ -2872,7 +2885,7 @@
     .cpz-original-circle { transform-origin: 108px 36px; animation: cpz-success-scale 360ms var(--cp-ease); }
     .cpz-original-tick { stroke-dasharray: 1; stroke-dashoffset: 1; animation: cpz-success-draw 320ms 360ms forwards; }
     .cpz-original-halo { transform-origin: 108px 36px; animation: cpz-success-halo 700ms ease-out; }
-    @keyframes cpz-success-scale { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+    @keyframes cpz-success-scale { 0% { transform: scale(1.35); opacity: 0; } 70% { transform: scale(.96); opacity: 1; } 100% { transform: scale(1); opacity: 1; } }
     @keyframes cpz-success-draw { to { stroke-dashoffset: 0; } }
     @keyframes cpz-success-halo { from { transform: scale(.8); opacity: 0; } to { transform: scale(1.1); opacity: .2; } }
     .cpz-interruption { animation: cpz-sheet-arrive 260ms var(--cp-ease); }
@@ -3307,10 +3320,7 @@
 
   CrazzyPe.prototype._loadStateAnimation = function (host, state) {
     if (!host || !window.fetch || (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches)) return;
-    var paths = {
-      confirming: "/checkout-assets/animations/confirming-coin-orbit-a.json",
-      success: "/checkout-assets/animations/success-check-pop-b.json",
-    };
+    var paths = {}; // Confirming/success use inline SVG + CSS (4.9.5); Lottie swap retired.
     var path = paths[state];
     if (!path) return;
     var self = this, session = this._session, started = performance.now();
@@ -5019,7 +5029,7 @@
     return wrap;
   };
 
-  /** One confirming state; 900ms minimum plus 450ms exit (1050ms reduced motion). */
+  /** One confirming state; 1000ms minimum plus 400ms exit (150ms reduced motion). */
   CrazzyPe.prototype._beginProcessingFlow = function (successData) {
     var self = this;
     if (this._successAccepted) return;
@@ -5029,7 +5039,7 @@
     clearInterval(this.pollingInterval);
     this.paymentTimer = this.pollingInterval = null;
     this._clearSheetTimers();
-    this._confirmingUntil = performance.now() + 900;
+    this._confirmingUntil = performance.now() + 1000;
     this._showConfirmingSheet();
     var session = this._session;
     this._sheetTimer = setTimeout(function () {
@@ -5037,11 +5047,11 @@
       self._confirmingReady = true;
       if (self._state === "close-during-confirming") return;
       self._completeConfirming();
-    }, 900);
+    }, 1000);
   };
 
   CrazzyPe.prototype._showConfirmingSheet = function () {
-    this._renderSheet({ state: "confirming", art: COIN_SVG, accent: "var(--cp-warning)", title: "Confirming payment", body: "This will only take a few seconds.", secured: true });
+    this._renderSheet({ state: "confirming", art: PULSE_SVG, accent: "var(--cp-primary)", title: "Confirming payment", body: "This will only take a few seconds.", secured: true });
   };
 
   CrazzyPe.prototype._completeConfirming = function () {
@@ -5051,7 +5061,7 @@
     var reduced = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     this._sheetTimer = setTimeout(function () {
       if (self._session === session && self.overlay && self._state !== "close-during-confirming") self._showSuccessSheet(self._pendingSuccess || {});
-    }, reduced ? 150 : 450);
+    }, reduced ? 150 : 400);
   };
 
   CrazzyPe.prototype._merchantDisplayName = function () {
@@ -5383,6 +5393,7 @@
       if (this.checkoutRoot) this.checkoutRoot.classList.add("cpz-paid");
     }
     this._loadStateAnimation(badge, "success");
+    if (navigator.vibrate) try { navigator.vibrate(15); } catch (e) { /* ignore */ }
     this._sheetEscape = null;
     title.focus();
     var announcement = document.createElement("div");
