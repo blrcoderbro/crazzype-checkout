@@ -12,7 +12,7 @@
   "use strict";
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.9.2";
+  var CHECKOUT_VERSION = "4.9.4";
 
   // API Configuration
   var API_BASE_URL =
@@ -1034,9 +1034,11 @@
       box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
       overflow: hidden;
       cursor: zoom-in;
-      padding: 0;
+      padding: 12px;
       margin: 0;
-      display: block;
+      display: flex;
+      align-items: center;
+      justify-content: center;
     }
 
     .cpz-upi-tile:focus-visible {
@@ -1047,10 +1049,14 @@
     .cpz-upi-tile img.cpz-upi-qr-img,
     .cpz-upi-tile .cpz-upi-qr-img {
       width: 100%;
-      height: 100%;
+      height: auto;
+      max-width: 100%;
+      max-height: 100%;
+      aspect-ratio: 1 / 1;
       object-fit: contain;
       object-position: center;
       display: block;
+      flex-shrink: 0;
       image-rendering: pixelated;
       image-rendering: crisp-edges;
       transition: filter 180ms ease, opacity 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
@@ -1375,10 +1381,10 @@
         width: 232px;
         height: 232px;
       }
-      .cpz-upi-tile,
-      .cpz-upi-tile img.cpz-upi-qr-img {
+      .cpz-upi-tile {
         width: 220px;
         height: 220px;
+        padding: 14px;
       }
       .cpz-how {
         flex-direction: column;
@@ -2761,11 +2767,11 @@
     .cpz-upi-amt-value, .cpz-upi-scan-label { color: var(--cp-ink); }
     .cpz-upi-amt-label, .cpz-upi-merchant, .cpz-how { color: var(--cp-muted); }
     .cpz-upi-tile-wrap { width: 184px; height: 184px; padding: 0; }
-    .cpz-upi-tile { width: 184px; height: 184px; border-radius: 8px; border-color: var(--cp-border); overflow: hidden; }
+    .cpz-upi-tile { width: 184px; height: 184px; border-radius: 8px; border-color: var(--cp-border); overflow: hidden; padding: 12px; display: flex; align-items: center; justify-content: center; }
     .cpz-upi-tile img { image-rendering: pixelated; image-rendering: crisp-edges; }
     .cpz-upi-hero, .cpz-upi-info, .cpz-checkout-mount, .cpz-frame-loader { transition-timing-function: var(--cp-ease); }
     .cpz-upi-hero, .cpz-upi-info { transition-duration: 300ms; }
-    .cpz-upi-tile .cpz-upi-qr-img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
+    .cpz-upi-tile .cpz-upi-qr-img { width: 100%; height: auto; max-width: 100%; max-height: 100%; aspect-ratio: 1 / 1; object-fit: contain; object-position: center; }
     .cpz-upi-scanline { left: 0; right: 0; opacity: .25; background: var(--cp-ink); animation-duration: 2.4s; }
     .cpz-upi-shimmer { overflow: hidden; background: #eef2f7; animation: none; }
     .cpz-upi-shimmer::after { inset: 0; border: 0; border-radius: 0; opacity: 1; background: linear-gradient(90deg, transparent, #fff, transparent); animation: cpz-qr-shimmer 1.2s ease-in-out infinite; }
@@ -2842,7 +2848,7 @@
     .cpz-sheet-host:has(.cpz-interruption)::before { content: ''; position: absolute; inset: 0; }
     .cpz-stage > .cpz-sheet-host:has(.cpz-interruption)::before { background: var(--cp-scrim); }
     .cpz-coin-scene { position: relative; width: 216px; height: 72px; perspective: 500px; }
-    .cpz-original-coin { position: absolute; left: 85px; top: 11px; width: 50px; height: 50px; transform-style: preserve-3d; animation: cpz-original-spin 1.5s linear infinite; }
+    .cpz-original-coin { position: absolute; left: 85px; top: 11px; width: 50px; height: 50px; transform-style: preserve-3d; animation: cpz-original-spin 2s var(--cp-ease) infinite; }
     .cpz-coin-face, .cpz-coin-edge { position: absolute; inset: 0; border-radius: 50%; background: linear-gradient(135deg, #fff0a3, #eab52d 45%, #b77513 75%, #f5d76d); border: 1px solid #b77513; }
     .cpz-coin-face { color: #82500d; backface-visibility: hidden; box-shadow: inset 0 0 0 2px #f9dc78; }
     .cpz-coin-face svg { width: 100%; height: 100%; }
@@ -2851,9 +2857,9 @@
     .cpz-coin-edge { background: #bd821c; }
     .cpz-coin-edge-back { transform: translateZ(-1px); }
     .cpz-coin-edge-front { transform: translateZ(1px); }
-    .cpz-coin-streaks { position: absolute; inset: 0; width: 216px; height: 72px; animation: cpz-pulse 1s ease-in-out infinite; }
+    .cpz-coin-streaks { position: absolute; inset: 0; width: 216px; height: 72px; animation: cpz-pulse 1.6s var(--cp-ease) infinite; }
     .cpz-hourglass-body { transform-origin: 108px 36px; animation: cpz-original-turn 2.4s var(--cp-ease) infinite; }
-    @keyframes cpz-original-spin { to { transform: rotateY(360deg); } }
+    @keyframes cpz-original-spin { 0%, 100% { transform: rotateY(0) scale(.94); } 50% { transform: rotateY(180deg) scale(1.06); } }
     @keyframes cpz-original-turn { to { transform: rotate(360deg); } }
     .cpz-state-confirming .cpz-illustration { transition: transform 450ms var(--cp-ease), opacity 450ms var(--cp-ease); }
     .is-coin-exit .cpz-illustration { transform: translateX(160px); opacity: 0; }
@@ -2869,6 +2875,17 @@
     @keyframes cpz-success-scale { from { transform: scale(.6); opacity: 0; } to { transform: scale(1); opacity: 1; } }
     @keyframes cpz-success-draw { to { stroke-dashoffset: 0; } }
     @keyframes cpz-success-halo { from { transform: scale(.8); opacity: 0; } to { transform: scale(1.1); opacity: .2; } }
+    .cpz-interruption { animation: cpz-sheet-arrive 260ms var(--cp-ease); }
+    .cpz-modal[data-cpz-state="pending"] .cpz-illustration { animation: cpz-art-float 2.4s var(--cp-ease) infinite; }
+    .cpz-modal[data-cpz-state="offline"] .cpz-illustration { animation: cpz-art-breathe 2.2s var(--cp-ease) infinite; }
+    .cpz-modal[data-cpz-state^="failure-"] .cpz-illustration { animation: cpz-failure-shake 360ms var(--cp-ease) both; }
+    .cpz-modal[data-cpz-state="exit-confirm"] .cpz-illustration,
+    .cpz-modal[data-cpz-state="startup-error"] .cpz-illustration { animation: cpz-art-pop 360ms var(--cp-ease) both; }
+    @keyframes cpz-sheet-arrive { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+    @keyframes cpz-art-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-5px); } }
+    @keyframes cpz-art-breathe { 0%, 100% { opacity: .72; transform: scale(.98); } 50% { opacity: 1; transform: scale(1.02); } }
+    @keyframes cpz-failure-shake { 0%, 100% { transform: translateX(0); } 30% { transform: translateX(-6px); } 60% { transform: translateX(6px); } }
+    @keyframes cpz-art-pop { from { opacity: 0; transform: scale(.9); } to { opacity: 1; transform: scale(1); } }
     .cpz-success-pane .cpz-receipt { width: 100%; max-width: 343px; border-radius: 12px; background: #fff; color: var(--cp-ink); padding: 16px; box-shadow: 0 8px 24px rgba(0,10,26,.12); }
     .cpz-success-pane .cpz-receipt-row { font-size: 14px; gap: 8px; align-items: start; }
     .cpz-success-pane .cpz-receipt-row strong { overflow-wrap: anywhere; min-width: 0; }
@@ -2903,7 +2920,8 @@
       .cpz-rzp-mobile-bar { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 16px; padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 0px)); background: #fff; border-top: 1px solid var(--cp-border); }
       .cpz-rzp-mobile-bar strong { font-size: 16px; font-variant-numeric: tabular-nums; }
       .cpz-rzp-mob-continue { height: 44px; padding: 0 24px; border: 0; font: inherit; font-weight: 600; }
-      .cpz-upi-tile-wrap, .cpz-upi-tile, .cpz-upi-tile img.cpz-upi-qr-img { width: 224px; height: 224px; }
+      .cpz-upi-tile-wrap, .cpz-upi-tile { width: 224px; height: 224px; }
+      .cpz-upi-tile { padding: 14px; }
       .cpz-upi-info { min-width: 0; max-width: 100%; text-align: center; }
       .cpz-upi-info > * { max-width: 100%; overflow-wrap: anywhere; }
       .cpz-upi-download { border-radius: 8px; }
