@@ -13,6 +13,7 @@
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
   var CHECKOUT_VERSION = "4.9.7";
+  /** jsDelivr cache-bust: prefer @main or https://crazzype.com/checkout.js over @refs/heads/main */
 
   // API Configuration
   var API_BASE_URL =
