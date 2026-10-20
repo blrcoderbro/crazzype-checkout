@@ -12,7 +12,7 @@
   "use strict";
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.9.5";
+  var CHECKOUT_VERSION = "4.9.7";
 
   // API Configuration
   var API_BASE_URL =
@@ -3610,7 +3610,7 @@
     if (this._closeLightbox && this.modalEl && this.modalEl.querySelector(".cpz-qr-lightbox")) { this._closeLightbox(); return; }
     if (this._state === "overflow-menu" && this._closeMenu) { this._closeMenu(); return; }
     if (this._state === "confirming") { this._showCloseDuringConfirming(); return; }
-    if (this._state === "success") { this._finishSuccess(this._successResponse, this.options.callback_url || "", this._successRedirect || ""); return; }
+    if (this._state === "success") { this._finishSuccess(this._successResponse); return; }
     if (this._activeSheet && this._sheetEscape) { this._sheetEscape(); return; }
     if (this._state === "close-during-confirming") return;
     if (this._qrActivated && this.checkoutRoot && !this._activeSheet) {
@@ -5261,10 +5261,9 @@
     this._successAccepted = true;
     clearInterval(this.paymentTimer); clearInterval(this.pollingInterval);
     this.paymentTimer = this.pollingInterval = null;
-    var explicitCallback = this.options.callback_url || "";
-    var redirectUrl = explicitCallback
-      ? data.redirect_url || explicitCallback
-      : "";
+    // Ref 0067b819: after success UI, fire handlers then close — no browser redirect.
+    // callback_url is for create-order / webhooks; hosted PaymentPage owns parameterized redirects.
+    var redirectUrl = String(this.options.callback_url || "").trim();
     var merchantName = this._merchantDisplayName();
 
     var sheet = document.createElement("div");
@@ -5274,7 +5273,7 @@
 
     var live = document.createElement("div");
     live.className = "cpz-sheet-live";
-    live.textContent = "You will be redirected in 5 seconds";
+    live.textContent = "Closing in 5 seconds";
 
     var title = document.createElement("div");
     title.className = "cpz-sheet-title";
@@ -5412,11 +5411,11 @@
       order_id: data.order_id || this.options.order_id,
       payment_id: data.payment_id,
       signature: data.signature || data.hash,
-      redirect_url: redirectUrl || explicitCallback || "",
+      redirect_url: redirectUrl || "",
     };
 
     this._successResponse = response;
-    this._successRedirect = redirectUrl;
+    this._successRedirect = "";
     var remaining = 5000, lastTick = performance.now(), hovered = false, focused = false, resumeAt = 0, paused = false;
     function paintCountdown() {
       var now = performance.now();
@@ -5428,14 +5427,14 @@
         if (!paused) self._announce("Paused");
       } else {
         var seconds = Math.ceil(remaining / 1000);
-        live.textContent = "You will be redirected in " + seconds + (seconds === 1 ? " second" : " seconds");
+        live.textContent = "Closing in " + seconds + (seconds === 1 ? " second" : " seconds");
       }
       paused = hold;
       if (remaining === 0) {
         clearInterval(self._redirectTimer); self._redirectTimer = null;
         sheet.classList.add("is-closing");
         var session = self._session;
-        self._sheetTimer = setTimeout(function () { if (self._session === session && self.overlay) self._finishSuccess(response, explicitCallback, redirectUrl); }, 220);
+        self._sheetTimer = setTimeout(function () { if (self._session === session && self.overlay) self._finishSuccess(response); }, 220);
       }
     }
     function pauseForCopy() { resumeAt = performance.now() + 2000; paintCountdown(); }
@@ -5445,11 +5444,15 @@
     receipt.onfocusout = function (event) { if (!receipt.contains(event.relatedTarget)) { focused = false; resumeAt = performance.now() + 2000; paintCountdown(); } };
     receipt.addEventListener("click", function (event) { if (event.target.closest("button")) pauseForCopy(); });
     this._clearSheetTimers();
-    this._announce("You will be redirected in 5 seconds");
+    this._announce("Closing in 5 seconds");
     this._redirectTimer = setInterval(paintCountdown, 100);
   };
 
-  CrazzyPe.prototype._finishSuccess = function (response, explicitCallback, redirectUrl) {
+  /**
+   * After success countdown (ref 0067b819): handler → onSuccess → close.
+   * Never browser-redirect; PaymentPage keeps parameterized redirects.
+   */
+  CrazzyPe.prototype._finishSuccess = function (response) {
     if (this._successFinished) return;
     this._successFinished = true;
     var self = this;
@@ -5467,12 +5470,7 @@
     } catch (err2) {
       console.error("CrazzyPe: onSuccess error", err2);
     }
-
-    if (explicitCallback) {
-      window.location.href = redirectUrl || explicitCallback;
-    } else {
-      self.close();
-    }
+    self.close();
   };
 
   CrazzyPe.prototype._runSuccessSequence = function (data) {
@@ -6134,17 +6132,14 @@
   };
 
   /**
-   * Handle success — Frames 3–6, then fire legacy handlers after the 5s countdown.
-   * Auto-redirect ONLY when merchant explicitly set callback_url.
+   * Handle success — confirming → receipt → handler/onSuccess → close (ref 0067b819).
    */
   CrazzyPe.prototype._handleSuccess = function (data) {
     data = data || {};
-    var explicitCallback = this.options.callback_url || "";
-    var redirectUrl = explicitCallback
-      ? data.redirect_url || explicitCallback
-      : "";
     this._beginProcessingFlow(
-      Object.assign({}, data, { redirect_url: redirectUrl || explicitCallback }),
+      Object.assign({}, data, {
+        redirect_url: String(this.options.callback_url || "").trim(),
+      }),
     );
   };
 
