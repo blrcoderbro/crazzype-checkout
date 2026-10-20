@@ -12,7 +12,7 @@
   "use strict";
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.9.1";
+  var CHECKOUT_VERSION = "4.9.2";
 
   // API Configuration
   var API_BASE_URL =
@@ -1046,11 +1046,13 @@
 
     .cpz-upi-tile img.cpz-upi-qr-img,
     .cpz-upi-tile .cpz-upi-qr-img {
-      width: 200px;
-      height: 200px;
+      width: 100%;
+      height: 100%;
       object-fit: contain;
+      object-position: center;
       display: block;
       image-rendering: pixelated;
+      image-rendering: crisp-edges;
       transition: filter 180ms ease, opacity 180ms ease, transform 180ms cubic-bezier(0.2, 0.8, 0.2, 1);
     }
 
@@ -1226,8 +1228,11 @@
     .cpz-qr-lightbox-card img {
       width: 320px;
       height: 320px;
+      object-fit: contain;
+      object-position: center;
       display: block;
       image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     .cpz-rzp-drag-handle {
@@ -1542,6 +1547,10 @@
     .cpz-qr-image {
       width: 180px;
       height: 180px;
+      object-fit: contain;
+      object-position: center;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
       display: block;
     }
 
@@ -2752,11 +2761,11 @@
     .cpz-upi-amt-value, .cpz-upi-scan-label { color: var(--cp-ink); }
     .cpz-upi-amt-label, .cpz-upi-merchant, .cpz-how { color: var(--cp-muted); }
     .cpz-upi-tile-wrap { width: 184px; height: 184px; padding: 0; }
-    .cpz-upi-tile { width: 184px; height: 184px; border-radius: 8px; border-color: var(--cp-border); }
-    .cpz-upi-tile img { image-rendering: pixelated; }
+    .cpz-upi-tile { width: 184px; height: 184px; border-radius: 8px; border-color: var(--cp-border); overflow: hidden; }
+    .cpz-upi-tile img { image-rendering: pixelated; image-rendering: crisp-edges; }
     .cpz-upi-hero, .cpz-upi-info, .cpz-checkout-mount, .cpz-frame-loader { transition-timing-function: var(--cp-ease); }
     .cpz-upi-hero, .cpz-upi-info { transition-duration: 300ms; }
-    .cpz-upi-tile .cpz-upi-qr-img { width: 100%; height: 100%; object-fit: contain; }
+    .cpz-upi-tile .cpz-upi-qr-img { width: 100%; height: 100%; object-fit: contain; object-position: center; }
     .cpz-upi-scanline { left: 0; right: 0; opacity: .25; background: var(--cp-ink); animation-duration: 2.4s; }
     .cpz-upi-shimmer { overflow: hidden; background: #eef2f7; animation: none; }
     .cpz-upi-shimmer::after { inset: 0; border: 0; border-radius: 0; opacity: 1; background: linear-gradient(90deg, transparent, #fff, transparent); animation: cpz-qr-shimmer 1.2s ease-in-out infinite; }
@@ -3700,6 +3709,7 @@
     return "";
   };
 
+  /** Match create-order api.qrserver artwork (high-res PNG, no logo/qzone stretch). */
   CrazzyPe.prototype._buildEccHQrUrl = function (payload, size) {
     size = size || 400;
     return (
@@ -3707,13 +3717,16 @@
       size +
       "x" +
       size +
-      "&ecc=H&qzone=4&color=000000&bgcolor=ffffff&format=png&data=" +
+      "&data=" +
       encodeURIComponent(payload)
     );
   };
 
   CrazzyPe.prototype._resolveCheckoutQrUrl = function (data) {
     data = data || {};
+    // Prefer original per-order api.qrserver URL from create-order.
+    if (data.qr_code_url) return data.qr_code_url;
+    if (/^data:image\//i.test(data.qr_code || "")) return data.qr_code;
     if (data.payment_url) {
       try {
         var token = new URL(data.payment_url, window.location.href).pathname
@@ -3729,7 +3742,6 @@
         /* fall through */
       }
     }
-    if (data.qr_code_url) return data.qr_code_url;
     var payload = this._resolveUpiPayload(data);
     if (payload) return this._buildEccHQrUrl(payload, 400);
     return "";
@@ -4295,8 +4307,7 @@
       var img = document.createElement("img");
       img.className = "cpz-upi-qr-img is-enter";
       img.alt = "Payment QR Code";
-      img.width = 200;
-      img.height = 200;
+      img.decoding = "async";
       img.onload = function () {
         if (qrImgEl !== img || !self._qrActivated || !self.overlay || self._session !== session || self._successAccepted) return;
         self._startTimer();
@@ -4342,13 +4353,7 @@
         self.pollingInterval = null;
       }
 
-      var payload = self._resolveUpiPayload(data);
-      var src = "";
-      if (payload) {
-        src = self._buildEccHQrUrl(payload, 400);
-      } else {
-        src = self._resolveCheckoutQrUrl(data);
-      }
+      var src = self._resolveCheckoutQrUrl(data);
 
       if (!src) {
         setStatus("QR unavailable", "is-expired");
@@ -4462,39 +4467,11 @@
   };
 
   CrazzyPe.prototype._downloadQrPng = function (src, amountStr, merchantName) {
-    var canvas = document.createElement("canvas");
-    canvas.width = 480;
-    canvas.height = 560;
-    var ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.fillStyle = "#ffffff";
-    ctx.fillRect(0, 0, canvas.width, canvas.height);
-    ctx.fillStyle = "#292f32";
-    ctx.font = "600 18px sans-serif";
-    ctx.textAlign = "center";
-    ctx.fillText(merchantName || "CrazzyPe", 240, 40);
-    ctx.font = "700 28px sans-serif";
-    ctx.fillText(amountStr || "", 240, 78);
-    var img = new Image();
-    img.crossOrigin = "anonymous";
-    img.onload = function () {
-      ctx.drawImage(img, 40, 100, 400, 400);
-      ctx.fillStyle = "#6c849d";
-      ctx.font = "400 13px sans-serif";
-      ctx.fillText("Scan with any UPI app", 240, 530);
-      try {
-        var a = document.createElement("a");
-        a.href = canvas.toDataURL("image/png");
-        a.download = "crazzype-upi-qr.png";
-        a.click();
-      } catch (e) {
-        window.open(src, "_blank");
-      }
-    };
-    img.onerror = function () {
-      window.open(src, "_blank");
-    };
-    img.src = src;
+    if (!src) return;
+    var a = document.createElement("a");
+    a.href = src;
+    a.download = "crazzype-upi-qr.png";
+    a.click();
   };
 
   CrazzyPe.prototype._ensureQr = function (data, slot, opts) {
@@ -4515,16 +4492,7 @@
       slot.appendChild(node);
     });
 
-    var qrData = Object.assign({}, data);
-    if (data.payment_url) {
-      try {
-        var token = new URL(data.payment_url, window.location.href).pathname.split("/").filter(Boolean).pop();
-        if (token) qrData.qr_code_url = apiOrdersUrl("/api/orders/checkout-qr/" + encodeURIComponent(token));
-      } catch (e) {
-        /* retain create-order QR fallback for legacy/custom payment URLs */
-      }
-    }
-    var qrSection = this._createQRSection(qrData);
+    var qrSection = this._createQRSection(data);
     if (preserve && preserve.parentNode === slot) {
       slot.insertBefore(qrSection, preserve);
     } else {
@@ -4679,59 +4647,12 @@
     var container = document.createElement("div");
     container.className = "cpz-qr-container";
 
-    // SDK-created orders expose payment_url; derive its token and materialize
-    // the QR only when Scan & Pay is opened.
-    var qrData = null;
-    if (data && data.payment_url) {
-      var token = String(data.payment_url).split("/pay/")[1];
-      if (token) {
-        qrData = apiOrdersUrl("/api/orders/checkout-qr/" + encodeURIComponent(token.split(/[?#]/)[0]));
-      }
-    }
-
-    // Priority: qr_code_url > upi_link > upi_intent > construct from upiId
-    if (!qrData && data && data.qr_code_url) {
-      qrData = data.qr_code_url;
-    } else if (data && data.upi_link) {
-      qrData =
-        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-        encodeURIComponent(data.upi_link);
-    } else if (data && data.upi_intent) {
-      qrData =
-        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-        encodeURIComponent(data.upi_intent);
-    } else if (data && data.upiId) {
-      // Reference format: pay?pa=&pn=&am=&tr=&mc=9223&orgid=000000&mode=01&cu=INR&tn=, strip spaces, encodeURI
-      var amount = this._normalizeAmountRupees(this.options.amount);
-      var tr = (data.order_id || this.options.order_id || "").toString();
-      var query =
-        "pay?pa=" +
-        data.upiId +
-        "&pn=" +
-        (this.options.name || "") +
-        "&am=" +
-        amount +
-        "&tr=" +
-        tr +
-        "&mc=9223&orgid=000000&mode=01&cu=INR&tn=" +
-        (this.options.description || "");
-      var upiLink = "upi://" + encodeURI(query.replace(/\s/g, ""));
-      qrData =
-        "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-        encodeURIComponent(upiLink);
-    }
+    var qrData = this._resolveCheckoutQrUrl(data);
 
     if (qrData) {
       var img = document.createElement("img");
       img.className = "cpz-qr-image";
-      // Check if qrData is already a full URL or needs to be used with qrserver
-      if (qrData.startsWith("http")) {
-        img.src = qrData;
-      } else {
-        img.src =
-          "https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=" +
-          encodeURIComponent(qrData);
-      }
+      img.src = qrData;
       img.alt = "Payment QR Code";
       img.onerror = function () {
         container.innerHTML = "";
