@@ -12,7 +12,7 @@
   "use strict";
 
   /** @type {string} Semver — bump this when shipping checkout UI/API changes */
-  var CHECKOUT_VERSION = "4.9.0";
+  var CHECKOUT_VERSION = "4.9.1";
 
   // API Configuration
   var API_BASE_URL =
@@ -1064,21 +1064,6 @@
       opacity: 1;
     }
 
-    .cpz-upi-logo {
-      position: absolute;
-      left: 50%;
-      top: 50%;
-      width: 40px;
-      height: 40px;
-      margin: -20px 0 0 -20px;
-      border-radius: 10px;
-      background: #fff;
-      box-shadow: 0 0 0 4px #fff;
-      object-fit: cover;
-      z-index: 3;
-      pointer-events: none;
-    }
-
     .cpz-upi-scanline {
       position: absolute;
       left: 0;
@@ -1136,8 +1121,7 @@
       opacity: 0.4;
     }
     .cpz-upi-tile-wrap.is-expired .cpz-upi-brackets,
-    .cpz-upi-tile-wrap.is-expired .cpz-upi-scanline,
-    .cpz-upi-tile-wrap.is-expired .cpz-upi-logo {
+    .cpz-upi-tile-wrap.is-expired .cpz-upi-scanline {
       display: none;
     }
 
@@ -3688,13 +3672,15 @@
 
   CrazzyPe.prototype._resolveUpiPayload = function (data) {
     data = data || {};
-    var picked = this._pickFirstNonPaytmUri([
+    var candidates = [
       data.generic_upi_intent,
       data.upi_link,
       data.upi_intent,
       data.upiLink,
-    ]);
-    if (picked) return picked;
+    ];
+    for (var i = 0; i < candidates.length; i++) {
+      if (/^upi:\/\//i.test(candidates[i] || "")) return candidates[i];
+    }
     if (data.upiId) {
       var amount = this._normalizeAmountRupees(this.options.amount);
       var tr = (data.order_id || this.options.order_id || "").toString();
@@ -4287,7 +4273,6 @@
     workspace.appendChild(mobileBar);
 
     var qrImgEl = null;
-    var qrLogoEl = null;
     var currentQrSrc = "";
 
     function setStatus(text, mode) {
@@ -4298,15 +4283,13 @@
 
     function clearTileMedia() {
       if (qrImgEl && qrImgEl.parentNode) qrImgEl.parentNode.removeChild(qrImgEl);
-      if (qrLogoEl && qrLogoEl.parentNode) qrLogoEl.parentNode.removeChild(qrLogoEl);
       qrImgEl = null;
-      qrLogoEl = null;
       scanline.hidden = true;
       if (!shimmer.parentNode) tileBtn.insertBefore(shimmer, tileBtn.firstChild);
       shimmer.hidden = false;
     }
 
-    function showLiveQr(src, withLogo) {
+    function showLiveQr(src) {
       clearTileMedia();
       shimmer.hidden = true;
       var img = document.createElement("img");
@@ -4337,14 +4320,6 @@
       tileBtn.appendChild(img);
       qrImgEl = img;
 
-      if (withLogo && self.options.image) {
-        var logo = document.createElement("img");
-        logo.className = "cpz-upi-logo";
-        logo.src = self.options.image;
-        logo.alt = "";
-        tileBtn.appendChild(logo);
-        qrLogoEl = logo;
-      }
     }
 
     function loadQr(isRefresh) {
@@ -4368,13 +4343,11 @@
       }
 
       var payload = self._resolveUpiPayload(data);
-      var useLogo = !!(self.options.image && payload);
       var src = "";
       if (payload) {
         src = self._buildEccHQrUrl(payload, 400);
       } else {
         src = self._resolveCheckoutQrUrl(data);
-        useLogo = false;
       }
 
       if (!src) {
@@ -4382,7 +4355,7 @@
         return;
       }
 
-      showLiveQr(src, useLogo);
+      showLiveQr(src);
 
       if (self._isBharatPeOrder(data)) {
         self._scheduleBharatPeUtrReminder();
@@ -4400,7 +4373,6 @@
       if (tt) tt.textContent = "00:00";
       setStatus(self._merchantOrderId ? "QR expired. Please close and try again." : "QR expired", "is-expired");
       refreshBtn.textContent = self._merchantOrderId ? "Close" : "Start again";
-      if (qrLogoEl) qrLogoEl.hidden = true;
       downloadBtn.hidden = true;
       scanline.hidden = true;
     }
@@ -4875,7 +4847,7 @@
     var self = this;
     for (var i = 0; i < candidates.length; i++) {
       var value = candidates[i] || "";
-      if (value && !self._isPaytmUri(value) && !/^intent:\/\//i.test(value))
+      if (value && /^upi:\/\//i.test(value) && !self._isPaytmUri(value))
         return value;
     }
     return "";
